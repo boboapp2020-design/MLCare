@@ -115,6 +115,59 @@
     if (USE_API) return apiGet("records").then(function (res) { return (res && res.records) || []; });
     return Promise.resolve(loadRecords());
   }
+  /* สต๊อก (ใช้ร่วม: พยาบาลเช็กก่อนจ่าย + หน้าดูสต๊อก) */
+  var stockData = [];
+  function loadStockShared() {
+    if (!USE_API) return Promise.resolve([]);
+    return apiGet("stock").then(function (r) { stockData = (r && r.stock) || []; return stockData; }).catch(function () { return stockData; });
+  }
+  function stockQtyOf(name) {
+    for (var i = 0; i < stockData.length; i++) if (stockData[i].name === name) return stockData[i].qty;
+    return null;  // ไม่มีในคลัง = ไม่ track = ไม่บล็อก
+  }
+
+  /* รวมแคตตาล็อก + สต๊อก (ใช้ทั้งหน้าแอดมินและหน้าดูของพยาบาล) */
+  function buildStockMeds() {
+    var noD = function (n) { return !/ไม่จ่าย|ไม่ได้จ่าย/.test(n); };
+    var smap = {}; stockData.forEach(function (s) { if (noD(s.name)) smap[s.name] = s; });
+    var meds = DB.medicines.filter(function (m) { return noD(m.name); }).map(function (m) {
+      var s = smap[m.name]; return { name: m.name, unit: m.unit, qty: s ? s.qty : 0, lots: s ? (s.lots || []) : [] };
+    });
+    stockData.forEach(function (s) {
+      if (noD(s.name) && !DB.medicines.some(function (m) { return m.name === s.name; })) meds.push({ name: s.name, unit: s.unit, qty: s.qty, lots: s.lots || [] });
+    });
+    return meds;
+  }
+  function lotsCellHtml(s) {
+    return (s.lots && s.lots.length)
+      ? s.lots.map(function (l) {
+          var e = expiryInfo(l.expiry);
+          var exp = e.has
+            ? "<span class='exp-badge " + e.cls + "'>" + e.date + (e.days < 0 ? " · หมดอายุ" : e.days <= 60 ? " · อีก " + e.days + "ว" : "") + "</span>"
+            : "<span class='exp-none'>ไม่มีวันหมดอายุ</span>";
+          return "<div class='lot-row'><b>" + l.qty + "</b> " + esc(s.unit) + " " + exp + "</div>";
+        }).join('')
+      : "<span class='exp-none'>—</span>";
+  }
+  function renderNurseStock() {
+    if (!USE_API) { $("nstock-body").innerHTML = "<tr><td colspan='4' class='empty'>ต้องเชื่อมฐานข้อมูล</td></tr>"; return; }
+    $("nstock-body").innerHTML = "<tr><td colspan='4' class='empty'>กำลังโหลด…</td></tr>";
+    loadStockShared().then(function () {
+      var meds = buildStockMeds();
+      $("nstock-body").innerHTML = meds.map(function (s) {
+        return "<tr><td>" + esc(s.name) + "</td><td>" + esc(s.unit) + "</td>" +
+          "<td><span class='stock-badge " + stockClass(s.qty) + "'>" + s.qty + "</span></td>" +
+          "<td class='lots-cell'>" + lotsCellHtml(s) + "</td></tr>";
+      }).join('') || "<tr><td colspan='4' class='empty'>ไม่มีรายการยา</td></tr>";
+    });
+  }
+
+  /* ---------- Alert popup (บล็อก) ---------- */
+  function showAlert(title, msg) {
+    $("alert-title").textContent = title || "แจ้งเตือน";
+    $("alert-msg").textContent = msg || "";
+    show($("alert-modal"));
+  }
   function storeDeleteRecord(code, pin) {
     if (USE_API) return apiPost("deleteRecord", { code: code, pin: pin }).then(function (res) {
       if (!res || !res.ok) throw new Error((res && res.error) || "ลบไม่สำเร็จ"); return res;
@@ -196,6 +249,7 @@
     hide($("view-login")); show($("view-app"));
     resetForm();
     setupRole(isAdminRole(nurse.role));
+    loadStockShared();
   }
   /* แสดง/ซ่อนแท็บตามบทบาท: admin = แดชบอร์ด/ประวัติ/วิเคราะห์/สต๊อก (ไม่มีหน้าบันทึก) */
   function setupRole(admin) {
@@ -435,13 +489,19 @@
     }
     var med = DB.medicines[+idx];
     unitEl.textContent = med.unit; qtyEl.disabled = false; qtyEl.placeholder = "จำนวน";
+    var avail = stockQtyOf(med.name);
+    if (avail !== null && avail <= 0) {   // หมดสต๊อก
+      hint.className = "med-hint warn";
+      hint.innerHTML = "⛔ ยานี้หมดสต๊อก — จ่ายไม่ได้";
+      updateAddBtn(); return;
+    }
     var bs = baseSymptom();
     if (bs && !isOther(bs) && (med.symptoms || []).indexOf(bs) < 0 && (med.symptoms || []).length) {
       hint.className = "med-hint warn";
       hint.innerHTML = "⚠ ยานี้อาจไม่ตรงกับอาการ “" + esc(bs) + "” — ใช้สำหรับ: " + esc(med.treats);
     } else {
       hint.className = "med-hint ok";
-      hint.innerHTML = med.treats ? "ใช้สำหรับ: " + esc(med.treats) : "";
+      hint.innerHTML = (avail !== null ? "คงเหลือ " + avail + " " + esc(med.unit) + " · " : "") + (med.treats ? "ใช้สำหรับ: " + esc(med.treats) : "");
     }
     updateAddBtn();
   }
@@ -497,6 +557,22 @@
     var noQty = meds.filter(function (m) { return !m.none && !m.qty; });
     if (noQty.length) { toast("กรุณากรอกจำนวนยาให้ครบทุกรายการ"); return; }
 
+    // ยาหมด/ไม่พอ → บล็อก + popup
+    if (USE_API) {
+      var problems = [];
+      meds.forEach(function (m) {
+        if (m.none) return;
+        var avail = stockQtyOf(m.name); if (avail === null) return;   // ไม่ track = ข้าม
+        var q = parseInt(m.qty, 10) || 0;
+        if (avail <= 0) problems.push("• " + m.name + " — หมดสต๊อก");
+        else if (q > avail) problems.push("• " + m.name + " — เหลือ " + avail + " " + m.unit + " (ขอเบิก " + q + ")");
+      });
+      if (problems.length) {
+        showAlert("จ่ายยาไม่ได้ — สต๊อกไม่พอ", "ยาต่อไปนี้จ่ายไม่ได้:\n\n" + problems.join("\n") + "\n\nกรุณาแจ้งผู้ดูแลให้เติมสต๊อก");
+        return;
+      }
+    }
+
     var rec = {
       datetime: new Date().toISOString(),
       nurseCode: currentNurse.code, nurseName: currentNurse.name,
@@ -528,7 +604,7 @@
     storeAddRecord(rec).then(function (res) {
       if (!rec.datetime) rec.datetime = new Date().toISOString();
       lastSlip = { rec: rec, code: res.code };
-      showCodeModal(res); refreshLog();
+      showCodeModal(res); refreshLog(); loadStockShared();
     }).catch(function (err) {
       toast("บันทึกไม่สำเร็จ: " + err.message);
     }).then(function () {
@@ -1163,7 +1239,7 @@
   }
 
   /* ---------- แท็บ ---------- */
-  var PANELS = ["record", "log", "search-name", "search-dept", "dashboard", "ahistory", "analytics", "stock", "users"];
+  var PANELS = ["record", "log", "nstock", "search-name", "search-dept", "dashboard", "ahistory", "analytics", "stock", "users"];
   var ADMIN_TABS = { dashboard: 1, ahistory: 1, analytics: 1, stock: 1 };
   function switchTab(name) {
     PANELS.forEach(function (p) { var el = $("tab-" + p); if (el) el.classList.toggle("hidden", p !== name); });
@@ -1174,6 +1250,7 @@
     if (name === "log") refreshLog();
     if (name === "search-dept") populateDepts();
     if (name === "users") reloadUsers();
+    if (name === "nstock") renderNurseStock();
     if (ADMIN_TABS[name]) adminLoad();
   }
   function toggleMore(e) { e.stopPropagation(); $("more-menu").classList.toggle("hidden"); }
@@ -1221,6 +1298,9 @@
     $("btn-ok").addEventListener("click", closeModal);
     $("btn-copy").addEventListener("click", copyCode);
     $("code-modal").addEventListener("click", function (e) { if (e.target === $("code-modal")) closeModal(); });
+    $("alert-ok").addEventListener("click", function () { hide($("alert-modal")); });
+    $("nstock-refresh").addEventListener("click", renderNurseStock);
+    $("alert-modal").addEventListener("click", function (e) { if (e.target === $("alert-modal")) hide($("alert-modal")); });
     $("warn-cancel").addEventListener("click", function () { closeWarn(false); });
     $("warn-proceed").addEventListener("click", function () { closeWarn(true); });
     $("warn-modal").addEventListener("click", function (e) { if (e.target === $("warn-modal")) closeWarn(false); });

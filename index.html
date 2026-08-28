@@ -45,6 +45,10 @@
         <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         ประวัติการบันทึก
       </button>
+      <button class="tab" data-tab="nstock" data-role="nurse" type="button">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 7l9-4 9 4-9 4-9-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 7v10l9 4 9-4V7" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 11v10" stroke="currentColor" stroke-width="1.6"/></svg>
+        ดูสต๊อกยา
+      </button>
       <button class="tab" data-tab="dashboard" data-role="admin" type="button">
         <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="3" width="8" height="5" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="11" width="8" height="10" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="14" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/></svg>
         แดชบอร์ด
@@ -257,6 +261,22 @@
       </div>
     </div>
 
+    <!-- ---------- แท็บดูสต๊อกยา (พยาบาล, อ่านอย่างเดียว) ---------- -->
+    <div id="tab-nstock" class="hidden">
+      <div class="admin-head">
+        <div><h2>สต๊อกยา</h2><p class="an-sub">ดูจำนวนคงเหลือ/วันหมดอายุ (อ่านอย่างเดียว)</p></div>
+        <button class="btn-ghost dark" id="nstock-refresh" type="button">↻ รีเฟรช</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="log">
+            <thead><tr><th>ชื่อยา</th><th>หน่วย</th><th>คงเหลือรวม</th><th>ล็อต (จำนวน · วันหมดอายุ)</th></tr></thead>
+            <tbody id="nstock-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- ---------- แท็บค้นหารายชื่อ ---------- -->
     <div id="tab-search-name" class="hidden">
       <div class="card">
@@ -460,6 +480,20 @@
 
   <footer class="app-footer">© 2026 MLCare Medical Room System<div class="footer-org">โรงงาน น้ำตาลมิตรลาว จำกัด</div></footer>
 </section>
+
+<!-- ============================================================
+     MODAL แจ้งเตือน (บล็อก) — เช่น ยาหมดสต๊อก
+     ============================================================ -->
+<div class="modal-overlay hidden" id="alert-modal">
+  <div class="modal">
+    <div class="warn-ic" style="background:#fde5e5;box-shadow:0 0 0 8px rgba(214,69,69,.12)">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#d64545" stroke-width="1.8"/><path d="M12 7v6" stroke="#d64545" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1.2" fill="#d64545"/></svg>
+    </div>
+    <h3 id="alert-title" style="color:#c23838">แจ้งเตือน</h3>
+    <p id="alert-msg" style="white-space:pre-line"></p>
+    <button class="btn-ok" id="alert-ok" type="button" style="background:linear-gradient(90deg,#d64545,#e86a6a)">รับทราบ</button>
+  </div>
+</div>
 
 <!-- ============================================================
      MODAL เตือน: ยาไม่ตรงกับอาการ
