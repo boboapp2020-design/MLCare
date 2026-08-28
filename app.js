@@ -1110,7 +1110,13 @@
   }
   function reloadUsers() {
     if (!USE_API) { renderUsers(); return Promise.resolve(); }
-    return apiGet("bootstrap").then(function (res) { if (res && res.users && res.users.length) DB.nurses = res.users; renderUsers(); });
+    $("users-body").innerHTML = "<tr><td colspan='5' class='empty'>กำลังโหลดจากฐานข้อมูล…</td></tr>";
+    return apiGet("bootstrap").then(function (res) {
+      if (res && res.users && res.users.length) DB.nurses = res.users;
+      renderUsers();
+    }).catch(function (e) {
+      $("users-body").innerHTML = "<tr><td colspan='5' class='empty'>โหลดไม่สำเร็จ: " + esc(e.message) + "</td></tr>";
+    });
   }
   function apiUser(action, d) {
     if (!USE_API) return Promise.reject(new Error("ต้องเชื่อมฐานข้อมูลก่อน"));
@@ -1167,7 +1173,7 @@
     hide($("more-menu"));
     if (name === "log") refreshLog();
     if (name === "search-dept") populateDepts();
-    if (name === "users") renderUsers();
+    if (name === "users") reloadUsers();
     if (ADMIN_TABS[name]) adminLoad();
   }
   function toggleMore(e) { e.stopPropagation(); $("more-menu").classList.toggle("hidden"); }
