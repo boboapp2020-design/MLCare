@@ -36,7 +36,7 @@ function doGet(e) {
   if (action === 'stock')   return json({ ok: true, stock: getStock() });
   if (action === 'movements') return json({ ok: true, movements: getMovements(200) });
   if (action === 'ping')    return json({ ok: true, time: new Date().toISOString() });
-  return json(bootstrap());
+  return json(bootstrapCached(e && e.parameter && e.parameter.fresh));
 }
 
 function doPost(e) {
@@ -80,6 +80,30 @@ function bootstrap() {
     symptoms: parseSymptoms()
   };
 }
+
+/* ---- cache bootstrap (gzip) ให้โหลดเร็ว ---- */
+var BOOT_CACHE_KEY = 'boot_v1';
+var BOOT_CACHE_TTL = 1800;   // 30 นาที
+function bootstrapCached(force) {
+  var cache = CacheService.getScriptCache();
+  if (!force) {
+    var z = cache.get(BOOT_CACHE_KEY);
+    if (z) {
+      try {
+        var blob = Utilities.newBlob(Utilities.base64Decode(z), 'application/x-gzip');
+        var obj = JSON.parse(Utilities.ungzip(blob).getDataAsString('UTF-8'));
+        obj.cached = true; return obj;
+      } catch (err) { /* rebuild */ }
+    }
+  }
+  var data = bootstrap();
+  try {
+    var gz = Utilities.gzip(Utilities.newBlob(JSON.stringify(data), 'application/json'));
+    cache.put(BOOT_CACHE_KEY, Utilities.base64Encode(gz.getBytes()), BOOT_CACHE_TTL);
+  } catch (err) { /* ใหญ่เกิน/พลาด = ไม่ cache ก็ได้ */ }
+  return data;
+}
+function clearBootCache() { try { CacheService.getScriptCache().remove(BOOT_CACHE_KEY); } catch (e) {} }
 
 function parseUsers() {
   var v = values('User'), out = [];
@@ -362,6 +386,17 @@ function isAdminPin(pin) {
   }
   return false;
 }
+function adminNameFromPin(pin) {
+  var users = parseUsers();
+  for (var i = 0; i < users.length; i++) if (S(users[i].pin) === S(pin) && /admin/i.test(users[i].role)) return users[i].name + ' (' + users[i].badge + ')';
+  return 'admin';
+}
+/* บันทึกร่องรอยการแก้ไข/ลบ (accountability) */
+function logAudit(action, detail, byPin) {
+  var sh = SS.getSheetByName('Audit');
+  if (!sh) { sh = SS.insertSheet('Audit'); sh.appendRow(['เวลา', 'การกระทำ', 'รายละเอียด', 'โดย']); sh.setFrozenRows(1); }
+  sh.appendRow([new Date(), action, detail, adminNameFromPin(byPin)]);
+}
 function deleteRecord(p) {
   if (!isAdminPin(p.pin)) return { ok: false, error: 'PIN ไม่ถูกต้อง' };
   var lock = LockService.getScriptLock(); lock.waitLock(15000);
@@ -370,7 +405,7 @@ function deleteRecord(p) {
     if (!sh) return { ok: false, error: 'ไม่มีข้อมูล' };
     var v = sh.getDataRange().getValues();
     for (var i = v.length - 1; i >= 1; i--) {
-      if (S(v[i][0]) === S(p.code)) { sh.deleteRow(i + 1); return { ok: true, code: S(p.code) }; }
+      if (S(v[i][0]) === S(p.code)) { sh.deleteRow(i + 1); logAudit('ลบบันทึก', 'โค้ด ' + S(p.code) + ' (' + S(v[i][5]) + ' · ' + S(v[i][13]) + ')', p.pin); return { ok: true, code: S(p.code) }; }
     }
     return { ok: false, error: 'ไม่พบโค้ด ' + S(p.code) };
   } finally { lock.releaseLock(); }
@@ -383,6 +418,7 @@ function clearRecords(p) {
     if (!sh) return { ok: true, cleared: 0 };
     var n = sh.getLastRow() - 1;
     if (n > 0) sh.deleteRows(2, n);
+    logAudit('ล้างประวัติทั้งหมด', 'ลบ ' + n + ' รายการ', p.pin);
     return { ok: true, cleared: n };
   } finally { lock.releaseLock(); }
 }
@@ -402,6 +438,7 @@ function updateRecord(p) {
         if (p.note != null) sh.getRange(row, 16).setValue(S(p.note));
         var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
         sh.getRange(row, 17).setValue('✎ แก้ไข ' + stamp + (p.by ? ' โดย ' + S(p.by) : ''));
+        logAudit('แก้ไขบันทึก', 'โค้ด ' + S(p.code), p.pin);
         return { ok: true, code: S(p.code) };
       }
     }
@@ -447,6 +484,7 @@ function addUser(p) {
     var sh = SS.getSheetByName('User'); if (!sh) return { ok: false, error: 'ไม่พบชีต User' };
     if (findUserRow(sh, badge) > 0) return { ok: false, error: 'Badge “' + badge + '” มีอยู่แล้ว' };
     sh.appendRow([name, badge, pin, role]);
+    clearBootCache();
     return { ok: true };
   } finally { lock.releaseLock(); }
 }
@@ -464,6 +502,7 @@ function updateUser(p) {
     if (p.newBadge && S(p.newBadge)) sh.getRange(r, 2).setValue(S(p.newBadge));
     if (p.pin && S(p.pin)) sh.getRange(r, 3).setValue(S(p.pin));
     if (p.role != null && S(p.role)) sh.getRange(r, 4).setValue(S(p.role));
+    clearBootCache();
     return { ok: true };
   } finally { lock.releaseLock(); }
 }
@@ -475,6 +514,8 @@ function deleteUser(p) {
     var r = findUserRow(sh, S(p.badge));
     if (r < 0) return { ok: false, error: 'ไม่พบผู้ใช้' };
     sh.deleteRow(r);
+    logAudit('ลบบัญชีผู้ใช้', 'Badge ' + S(p.badge), p.adminPin);
+    clearBootCache();
     return { ok: true };
   } finally { lock.releaseLock(); }
 }

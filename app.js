@@ -260,6 +260,7 @@
     resetForm();
     setupRole(isAdminRole(nurse.role));
     loadStockShared();
+    resetIdle();
   }
   /* แสดง/ซ่อนแท็บตามบทบาท: admin = แดชบอร์ด/ประวัติ/วิเคราะห์/สต๊อก (ไม่มีหน้าบันทึก) */
   function setupRole(admin) {
@@ -486,7 +487,7 @@
     wrap.innerHTML =
       '<div class="m-name"><select class="inp med-name">' + medOptionsHTML() + '</select></div>' +
       '<div class="m-qty"><input class="inp med-qty" type="number" min="1" placeholder="จำนวน"><span class="unit-chip med-unit">หน่วย</span></div>' +
-      '<button type="button" class="m-del" title="ลบ">✕</button>' +
+      '<button type="button" class="m-del" title="ลบ" aria-label="ลบรายการยา">✕</button>' +
       '<div class="med-hint"></div>';
     var sel = wrap.querySelector(".med-name");
     if (idx != null) sel.value = idx;
@@ -611,7 +612,7 @@
       division: emp.division, department: emp.department, group: emp.group,
       symptom: resolvedSymptom(),
       meds: meds.map(function (m) { return { name: m.name, unit: m.unit, qty: m.qty }; }),
-      note: $("note").value.trim()
+      note: (function () { var n = $("note").value.trim(); return $("referral").checked ? ("🏥 ส่งต่อโรงพยาบาล" + (n ? " · " + n : "")) : n; })()
     };
 
     var bad = (bs && !isOther(bs))
@@ -678,7 +679,7 @@
     setEmpMode("emp");
     setSymptomMode("illness");
     $("symptom").value = ""; hide($("symptom-other")); $("symptom-other").value = "";
-    $("note").value = "";
+    $("note").value = ""; $("referral").checked = false;
     $("med-list").innerHTML = ""; addMedLine();
     if (currentNurse) $("nurse-locked").value = currentNurse.name;
   }
@@ -859,6 +860,15 @@
     });
   }
   function sameDay(iso, d) { var x = new Date(iso); return x.getFullYear() === d.getFullYear() && x.getMonth() === d.getMonth() && x.getDate() === d.getDate(); }
+  function isAccidentRec(r) { return /อุบัติเหตุ|ทำแผล/.test(r.symptom || ""); }
+  function accidentSeverity(sym) {
+    if (/รุนแรง/.test(sym)) return "รุนแรง";
+    if (/ปานกลาง/.test(sym)) return "ปานกลาง";
+    if (/เล็กน้อย/.test(sym)) return "เล็กน้อย";
+    if (/ทำแผล/.test(sym)) return "ทำแผล";
+    return "อื่น ๆ";
+  }
+  function isReferred(r) { return /ส่งต่อโรงพยาบาล/.test(r.note || ""); }
   function ageBucket(age) {
     var a = parseInt(age, 10);
     if (isNaN(a) || a <= 0) return "ไม่ระบุ";
@@ -883,6 +893,7 @@
       { label: "วันนี้", unit: "รายการ", value: today, ic: "📅", c: "blue" },
       { label: "เดือนนี้", unit: "รายการ", value: month, ic: "🗓️", c: "green" },
       { label: "พนักงานที่ใช้บริการ", unit: "คน", value: Object.keys(uniq).length, ic: "👥", c: "purple" },
+      { label: "อุบัติเหตุ (เดือนนี้)", unit: "ครั้ง", value: recs.filter(function (r) { var x = new Date(r.datetime); return isAccidentRec(r) && x.getFullYear() === now.getFullYear() && x.getMonth() === now.getMonth(); }).length, ic: "🩹", c: "red" },
       { label: "ยาใกล้หมด (≤5)", unit: "รายการ", value: low, ic: "⚠️", c: "amber" }
     ];
     $("kpi-row").innerHTML = kpis.map(function (k) {
@@ -923,8 +934,8 @@
       return "<tr><td class='code-cell'>" + esc(r.code) + edited + "</td><td>" + esc(fmtDate(r.datetime)) + "</td><td>" + esc(r.empId) +
         "</td><td>" + esc(r.empName) + "</td><td>" + esc(r.gender) + "</td><td>" + esc(r.age) + "</td><td>" + esc(r.department) +
         "</td><td>" + esc(r.symptom) + "</td><td>" + esc(mp.names) + "</td><td>" + esc(mp.qtys) + "</td><td>" + esc(r.nurseName) +
-        "</td><td class='row-actions'><button class='btn-edit-row' data-code='" + esc(r.code) + "' title='แก้ไข'>✎</button>" +
-        "<button class='btn-del-row' data-code='" + esc(r.code) + "' title='ลบรายการนี้'>🗑</button></td></tr>";
+        "</td><td class='row-actions'><button class='btn-edit-row' data-code='" + esc(r.code) + "' title='แก้ไข' aria-label='แก้ไขรายการ " + esc(r.code) + "'>✎</button>" +
+        "<button class='btn-del-row' data-code='" + esc(r.code) + "' title='ลบรายการนี้' aria-label='ลบรายการ " + esc(r.code) + "'>🗑</button></td></tr>";
     }).join('');
   }
   var AN_COLORS = ['#12a0b8', '#e88f1c', '#8a5cd0', '#1f9d74', '#d64545', '#3f74d0', '#c05fa0'];
@@ -1024,6 +1035,14 @@
     var ageCnt = {}; recs.forEach(function (r) { var b = ageBucket(r.age); ageCnt[b] = (ageCnt[b] || 0) + 1; });
     var ageItems = ageOrder.filter(function (k) { return ageCnt[k]; }).map(function (k) { return { label: k, value: ageCnt[k] }; });
     $("an-age").innerHTML = barChart(ageItems);
+    // อุบัติเหตุ
+    var accRecs = recs.filter(isAccidentRec);
+    var referred = accRecs.filter(isReferred).length;
+    var sevOrder = ["รุนแรง", "ปานกลาง", "เล็กน้อย", "ทำแผล", "อื่น ๆ"];
+    var sevCnt = grpCount(accRecs, function (r) { return accidentSeverity(r.symptom); });
+    $("an-acc-sev").innerHTML = "<div style='font-size:13px;color:var(--ink-soft);margin-bottom:8px'>อุบัติเหตุรวม <b style='color:#d64545'>" + accRecs.length + "</b> ครั้ง · ส่งต่อ รพ. <b style='color:#d64545'>" + referred + "</b></div>" +
+      barChart(sevOrder.filter(function (k) { return sevCnt[k]; }).map(function (k) { return { label: k, value: sevCnt[k] }; }));
+    $("an-acc-dept").innerHTML = rankBars(toItems(grpCount(accRecs, function (r) { return r.department; })), 8);
     $("an-nurse").innerHTML = rankBars(toItems(grpCount(recs, function (r) { return r.nurseName; })), 8);
   }
   function stockClass(q) { return q <= 5 ? "st-low" : (q <= 10 ? "st-mid" : "st-ok"); }
@@ -1206,10 +1225,12 @@
       var isMe = currentNurse && u.badge === currentNurse.badge;
       var admin = /admin/i.test(u.role);
       return "<tr><td>" + esc(u.name) + (isMe ? " <span class='role-tag role-me'>คุณ</span>" : "") + "</td>" +
-        "<td>" + esc(u.badge) + "</td><td>" + esc(u.pin) + "</td>" +
+        "<td>" + esc(u.badge) + "</td>" +
+        "<td><span class='pin-mask'>••••</span><span class='pin-real hidden'>" + esc(u.pin) + "</span> " +
+        "<button class='pin-eye' type='button' title='ดู/ซ่อน PIN' aria-label='ดู/ซ่อน PIN'>👁</button></td>" +
         "<td><span class='role-tag " + (admin ? "role-admin" : "role-nurse") + "'>" + esc(roleLabel(u.role)) + "</span></td>" +
-        "<td class='row-actions'><button class='btn-edit-row u-edit' data-badge='" + esc(u.badge) + "' title='แก้ไข'>✎</button>" +
-        (isMe ? "" : "<button class='btn-del-row u-del' data-badge='" + esc(u.badge) + "' title='ลบ'>🗑</button>") + "</td></tr>";
+        "<td class='row-actions'><button class='btn-edit-row u-edit' data-badge='" + esc(u.badge) + "' title='แก้ไข' aria-label='แก้ไขบัญชี " + esc(u.name) + "'>✎</button>" +
+        (isMe ? "" : "<button class='btn-del-row u-del' data-badge='" + esc(u.badge) + "' title='ลบ' aria-label='ลบบัญชี " + esc(u.name) + "'>🗑</button>") + "</td></tr>";
     }).join('') || "<tr><td colspan='5' class='empty'>ไม่มีบัญชี</td></tr>";
   }
   function reloadUsers() {
@@ -1292,6 +1313,35 @@
     if (st) st.value = p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
   }
 
+  /* ---------- Accessibility ---------- */
+  function closeTopModal() {
+    if (!$("code-modal").classList.contains("hidden")) { closeModal(); return true; }
+    if (!$("warn-modal").classList.contains("hidden")) { closeWarn(false); return true; }
+    if (!$("pin-modal").classList.contains("hidden")) { closePin(); return true; }
+    var open = document.querySelectorAll(".modal-overlay:not(.hidden)");
+    if (open.length) { for (var i = 0; i < open.length; i++) open[i].classList.add("hidden"); return true; }
+    hide($("more-menu")); return false;
+  }
+  function setupA11y() {
+    document.querySelectorAll(".modal-overlay > .modal").forEach(function (m) {
+      m.setAttribute("role", "dialog"); m.setAttribute("aria-modal", "true");
+      var h = m.querySelector("h3"); if (h) m.setAttribute("aria-label", h.textContent.trim());
+    });
+    var am = $("alert-modal") && $("alert-modal").querySelector(".modal");
+    if (am) am.setAttribute("role", "alertdialog");
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeTopModal(); });
+  }
+
+  /* ---------- Auto-logout (ไม่มีการใช้งาน) ---------- */
+  var idleTimer = null, IDLE_MS = 15 * 60 * 1000;
+  function resetIdle() {
+    if (!currentNurse) return;
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function () {
+      if (currentNurse) { logout(); showAlert("ออกจากระบบอัตโนมัติ", "ไม่มีการใช้งานเกิน 15 นาที ระบบออกจากระบบเพื่อความปลอดภัย กรุณาเข้าสู่ระบบใหม่"); }
+    }, IDLE_MS);
+  }
+
   function setConnBadge() {
     var f = document.querySelector(".app-footer");
     if (!f) return;
@@ -1354,6 +1404,8 @@
     $("u-save").addEventListener("click", saveUser);
     $("user-modal").addEventListener("click", function (e) { if (e.target === $("user-modal")) hide($("user-modal")); });
     $("users-body").addEventListener("click", function (e) {
+      var eye = e.target.closest(".pin-eye");
+      if (eye) { var td = eye.parentNode; td.querySelector(".pin-mask").classList.toggle("hidden"); td.querySelector(".pin-real").classList.toggle("hidden"); return; }
       var ed = e.target.closest(".u-edit"); if (ed) { openUserModal("edit", ed.getAttribute("data-badge")); return; }
       var dl = e.target.closest(".u-del"); if (dl) askDeleteUser(dl.getAttribute("data-badge"));
     });
@@ -1404,6 +1456,8 @@
 
     $("symptom").addEventListener("change", onSymptomChange);
 
+    setupA11y();
+    ["click", "keydown", "mousemove", "touchstart"].forEach(function (ev) { document.addEventListener(ev, resetIdle, true); });
     loadBootCache();   // แสดงข้อมูลจาก cache ทันที แล้วค่อยอัปเดตสดเบื้องหลัง
     setConnBadge();
     tickClock(); setInterval(tickClock, 1000);

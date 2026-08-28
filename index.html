@@ -72,9 +72,9 @@
     </nav>
     <div class="topbar-right">
       <span class="queue-badge hidden" id="queue-badge"></span>
-      <button class="avatar" id="btn-settings" type="button" title="ตั้งค่า / เปลี่ยน PIN">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5z"/></svg>
-        <span class="avatar-gear">⚙</span>
+      <button class="avatar" id="btn-settings" type="button" title="ตั้งค่า / เปลี่ยน PIN" aria-label="ตั้งค่า / เปลี่ยน PIN">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5z"/></svg>
+        <span class="avatar-gear" aria-hidden="true">⚙</span>
       </button>
       <div class="who">
         <b id="who-name">—</b>
@@ -218,6 +218,10 @@
           <div class="form-group">
             <label for="note">หมายเหตุ</label>
             <textarea class="inp" id="note" maxlength="500" placeholder="ข้อมูลเพิ่มเติม (ถ้ามี)"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="chk-line"><input type="checkbox" id="referral"> <span>🏥 ส่งต่อโรงพยาบาล</span></label>
           </div>
 
           <div class="form-group">
@@ -426,6 +430,8 @@
         <div class="card"><h3>👤 พนักงานที่ใช้บริการบ่อย</h3><div id="an-emp"></div></div>
         <div class="card"><h3>💊 ยาที่จ่ายบ่อย</h3><div id="an-meds"></div></div>
         <div class="card"><h3>🎂 ช่วงอายุที่มาใช้บริการ</h3><div id="an-age"></div></div>
+        <div class="card"><h3>🩹 อุบัติเหตุ · ตามความรุนแรง</h3><div id="an-acc-sev"></div></div>
+        <div class="card"><h3>🏭 อุบัติเหตุ · ตามแผนก</h3><div id="an-acc-dept"></div></div>
         <div class="card"><h3>👩‍⚕️ ตามพยาบาลผู้ให้บริการ</h3><div id="an-nurse"></div></div>
       </div>
     </div>
@@ -624,7 +630,7 @@
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="config.js"></script>
 <script src="employees.js"></script>

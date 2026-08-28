@@ -636,6 +636,11 @@ textarea.inp{min-height:52px}
 .role-admin{background:#f1eaff;color:#7a52c0}
 .role-nurse{background:#e7f7fa;color:var(--teal-deep)}
 .role-me{background:#e5f7ef;color:#1f9d74}
+.pin-eye{border:0;background:transparent;cursor:pointer;font-size:15px;padding:0 4px;opacity:.7}
+.pin-eye:hover{opacity:1}
+.chk-line{display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:15px;font-weight:600;
+  color:var(--ink);background:#fff6ea;border:1.5px solid #f6dcae;border-radius:12px;padding:11px 16px}
+.chk-line input{width:20px;height:20px;accent-color:#e08a1e;cursor:pointer}
 
 #stock-moves{max-height:360px;overflow:auto}
 .mv-item{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line);font-size:13px}
