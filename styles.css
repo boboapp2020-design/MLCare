@@ -641,6 +641,8 @@ textarea.inp{min-height:52px}
 .chk-line{display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:15px;font-weight:600;
   color:var(--ink);background:#fff6ea;border:1.5px solid #f6dcae;border-radius:12px;padding:11px 16px}
 .chk-line input{width:20px;height:20px;accent-color:#e08a1e;cursor:pointer}
+.help-i{margin-left:auto;font-size:14px;opacity:.7;cursor:help}
+.help-i:hover{opacity:1}
 
 #stock-moves{max-height:360px;overflow:auto}
 .mv-item{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line);font-size:13px}
