@@ -191,9 +191,9 @@ body::before{
 /* หัวการ์ด: ชื่อซ้าย + ปุ่มค้นหาขวา */
 /* toggle โหมด พนักงาน/ผู้รับเหมา */
 .emp-mode{display:inline-flex;background:#eef6f8;border-radius:12px;padding:4px;gap:4px;margin-bottom:12px}
-.emode-btn{border:0;background:transparent;color:var(--ink-soft);font-family:var(--font);font-weight:700;
+.emode-btn,.smode-btn{border:0;background:transparent;color:var(--ink-soft);font-family:var(--font);font-weight:700;
   font-size:14px;padding:8px 16px;border-radius:9px;cursor:pointer;transition:.12s}
-.emode-btn.active{background:#fff;color:var(--teal-deep);box-shadow:0 3px 10px -4px rgba(9,80,97,.4)}
+.emode-btn.active,.smode-btn.active{background:#fff;color:var(--teal-deep);box-shadow:0 3px 10px -4px rgba(9,80,97,.4)}
 
 .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .card-head h3{margin:0}

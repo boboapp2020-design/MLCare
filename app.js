@@ -419,21 +419,34 @@
 
   /* ---------- อาการ dropdown ---------- */
   function isOther(v) { return /อื่น/.test(v || ""); }
-  /* สร้าง options อาการ — "อื่น ๆ" อยู่ล่างสุดเสมอ (ใช้ซ้ำได้หลาย select) */
-  function buildSymptomOptions(sel) {
+  function isAccidentSymptom(s) { return /อุบัติเหตุ|ทำแผล/.test(s || ""); }
+  var symptomMode = "illness";
+  /* สร้าง options อาการ — กรองตามโหมด (illness/accident); ไม่ระบุ mode = ทุกอย่าง; "อื่น ๆ" ล่างสุด */
+  function buildSymptomOptions(sel, mode) {
     if (!sel) return;
     var keep = sel.value;
-    sel.innerHTML = '<option value="">— เลือกอาการ —</option>';
+    sel.innerHTML = '<option value="">— เลือก —</option>';
     var otherLabel = null;
     DB.symptoms.forEach(function (s) {
       if (isOther(s)) { if (!otherLabel) otherLabel = s; return; }
+      if (mode === "illness" && isAccidentSymptom(s)) return;
+      if (mode === "accident" && !isAccidentSymptom(s)) return;
       var o = document.createElement("option"); o.value = s; o.textContent = s; sel.appendChild(o);
     });
     var ol = otherLabel || "อื่น ๆ";
     var oo = document.createElement("option"); oo.value = ol; oo.textContent = ol; sel.appendChild(oo);
     if (keep) sel.value = keep;
   }
-  function populateSymptoms() { buildSymptomOptions($("symptom")); }
+  function populateSymptoms() { buildSymptomOptions($("symptom"), symptomMode); }
+  function setSymptomMode(mode) {
+    symptomMode = mode;
+    var btns = document.querySelectorAll(".smode-btn");
+    for (var i = 0; i < btns.length; i++) btns[i].classList.toggle("active", btns[i].dataset.smode === mode);
+    $("symptom-label").textContent = mode === "accident" ? "ประเภทอุบัติเหตุ" : "อาการป่วย";
+    buildSymptomOptions($("symptom"), mode);
+    $("symptom").value = ""; hide($("symptom-other")); $("symptom-other").value = "";
+    refreshMedHints();
+  }
   function onSymptomChange() {
     var sel = $("symptom");
     if (isOther(sel.value)) show($("symptom-other"));
@@ -443,7 +456,11 @@
   function baseSymptom() { return $("symptom").value; }
   function resolvedSymptom() {
     var s = $("symptom").value;
-    if (isOther(s)) { var o = $("symptom-other").value.trim(); return o ? s + ": " + o : s; }
+    if (isOther(s)) {
+      var o = $("symptom-other").value.trim();
+      if (symptomMode === "accident") return o ? "อุบัติเหตุ: " + o : "อุบัติเหตุ (อื่น ๆ)";
+      return o ? s + ": " + o : s;
+    }
     return s;
   }
 
@@ -549,7 +566,7 @@
     }
     var emp = currentEmp;
     var bs = baseSymptom();
-    if (!bs) { toast("กรุณาเลือกอาการป่วย"); $("symptom").focus(); return; }
+    if (!bs) { toast(symptomMode === "accident" ? "กรุณาเลือกประเภทอุบัติเหตุ" : "กรุณาเลือกอาการป่วย"); $("symptom").focus(); return; }
     if (isOther(bs) && !$("symptom-other").value.trim()) { toast("กรุณาระบุอาการ (ช่องโปรดระบุ)"); $("symptom-other").focus(); return; }
 
     var meds = collectMeds();
@@ -649,6 +666,7 @@
     hide($("history-card"));
     $("c-first").value = ""; $("c-last").value = ""; $("c-age").value = ""; $("c-company").value = "";
     setEmpMode("emp");
+    setSymptomMode("illness");
     $("symptom").value = ""; hide($("symptom-other")); $("symptom-other").value = "";
     $("note").value = "";
     $("med-list").innerHTML = ""; addMedLine();
@@ -1286,6 +1304,8 @@
     $("btn-select-emp").addEventListener("click", selectEmployee);
     var emodeBtns = document.querySelectorAll(".emode-btn");
     for (var mi = 0; mi < emodeBtns.length; mi++) emodeBtns[mi].addEventListener("click", function () { setEmpMode(this.dataset.mode); });
+    var smodeBtns = document.querySelectorAll(".smode-btn");
+    for (var si = 0; si < smodeBtns.length; si++) smodeBtns[si].addEventListener("click", function () { setSymptomMode(this.dataset.smode); });
     $("c-confirm").addEventListener("click", confirmContractor);
     $("c-clear").addEventListener("click", clearContractor);
     ["c-first", "c-last", "c-age", "c-company"].forEach(function (id) {

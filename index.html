@@ -198,11 +198,15 @@
           </div>
 
           <div class="form-group">
-            <label class="req" for="symptom">อาการป่วย</label>
+            <div class="emp-mode" style="margin-bottom:10px">
+              <button class="smode-btn active" data-smode="illness" type="button">🤒 เจ็บป่วย</button>
+              <button class="smode-btn" data-smode="accident" type="button">🩹 อุบัติเหตุ</button>
+            </div>
+            <label class="req" for="symptom" id="symptom-label">อาการป่วย</label>
             <select class="inp" id="symptom">
               <option value="">— เลือกอาการ —</option>
             </select>
-            <input class="inp hidden" id="symptom-other" type="text" placeholder="โปรดระบุอาการ (บังคับกรอก)" style="margin-top:10px">
+            <input class="inp hidden" id="symptom-other" type="text" placeholder="โปรดระบุ (บังคับกรอก)" style="margin-top:10px">
           </div>
 
           <div class="form-group">
