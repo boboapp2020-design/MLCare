@@ -893,7 +893,7 @@
       { label: "วันนี้", unit: "รายการ", value: today, ic: "📅", c: "blue" },
       { label: "เดือนนี้", unit: "รายการ", value: month, ic: "🗓️", c: "green" },
       { label: "พนักงานที่ใช้บริการ", unit: "คน", value: Object.keys(uniq).length, ic: "👥", c: "purple" },
-      { label: "อุบัติเหตุ (เดือนนี้)", unit: "ครั้ง", value: recs.filter(function (r) { var x = new Date(r.datetime); return isAccidentRec(r) && x.getFullYear() === now.getFullYear() && x.getMonth() === now.getMonth(); }).length, ic: "🩹", c: "red" },
+      { label: "อุบัติเหตุ", unit: "ครั้ง · เดือนนี้", value: recs.filter(function (r) { var x = new Date(r.datetime); return isAccidentRec(r) && x.getFullYear() === now.getFullYear() && x.getMonth() === now.getMonth(); }).length, ic: "🩹", c: "red" },
       { label: "ยาใกล้หมด (≤5)", unit: "รายการ", value: low, ic: "⚠️", c: "amber" }
     ];
     $("kpi-row").innerHTML = kpis.map(function (k) {
