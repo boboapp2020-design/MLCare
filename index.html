@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MLCare · Medical Room System</title>
+<link rel="icon" href="ICon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============================================================
+     หน้า LOGIN  (ฝังภาพ home.png + ช่องกรอกจริง + ปุ่มใหม่)
+     ============================================================ -->
+<section id="view-login" class="login-wrap">
+  <form id="login-form" class="login-stage" autocomplete="off">
+    <input id="login-name"  class="ov-input ov-name"  type="text" placeholder="Badge ID" autocomplete="off" required>
+    <input id="login-badge" class="ov-input ov-badge" type="password" inputmode="numeric" placeholder="Pin" autocomplete="off" required>
+    <button id="login-btn" class="ov-btn" type="submit">
+      <span>เข้าสู่ระบบ</span>
+      <span class="arrow"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12h13M13 6l6 6-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    </button>
+    <div class="ov-error" id="login-error"></div>
+  </form>
+  <p class="login-note">
+    เข้าระบบด้วย <b>Badge ID</b> + <b>Pin</b>
+  </p>
+  <div class="login-copyright">© 2026 MLCare Medical Room System<div class="footer-org">โรงงาน น้ำตาลมิตรลาว จำกัด</div></div>
+</section>
+
+<!-- ============================================================
+     หน้าแอป (หลัง login)
+     ============================================================ -->
+<section id="view-app" class="hidden">
+  <header class="topbar">
+    <img class="brand-logo" src="ICon.png" alt="MLCare Medical Room System">
+    <nav class="nav-tabs" id="nav-tabs">
+      <button class="tab active" data-tab="record" data-role="nurse" type="button">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M9 8h6M9 12h6M9 16h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M17.5 4.5l2 2-4 4h-2v-2z" fill="currentColor"/></svg>
+        บันทึกการใช้บริการ
+      </button>
+      <button class="tab" data-tab="log" data-role="nurse" type="button">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        ประวัติการบันทึก
+      </button>
+      <button class="tab" data-tab="dashboard" data-role="admin" type="button">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="3" width="8" height="5" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="11" width="8" height="10" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="14" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7"/></svg>
+        แดชบอร์ด
+      </button>
+      <button class="tab" data-tab="analytics" data-role="admin" type="button">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 20V10M10 20V4M16 20v-7M4 20h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        วิเคราะห์ข้อมูล
+      </button>
+      <button class="tab" data-tab="ahistory" data-role="admin" type="button">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        ประวัติการบันทึก
+      </button>
+      <button class="tab" data-tab="stock" data-role="admin" type="button">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 7l9-4 9 4-9 4-9-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 7v10l9 4 9-4V7" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 11v10" stroke="currentColor" stroke-width="1.6"/></svg>
+        สต๊อกยา
+      </button>
+      <button class="tab" data-tab="users" data-role="admin" type="button">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 20c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M17 8h5M19.5 5.5v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        จัดการบัญชี
+      </button>
+    </nav>
+    <div class="topbar-right">
+      <span class="queue-badge hidden" id="queue-badge"></span>
+      <button class="avatar" id="btn-settings" type="button" title="ตั้งค่า / เปลี่ยน PIN">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5z"/></svg>
+        <span class="avatar-gear">⚙</span>
+      </button>
+      <div class="who">
+        <b id="who-name">—</b>
+        <small>พยาบาลผู้ให้บริการ • รหัส <span id="who-code">—</span></small>
+      </div>
+      <button class="btn-logout" id="btn-logout" type="button">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M15 12H4m0 0l3.5-3.5M4 12l3.5 3.5M14 5h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ออกจากระบบ
+      </button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- ---------- แท็บบันทึก ---------- -->
+    <div id="tab-record" class="tab-panel">
+      <form id="record-form" autocomplete="off">
+       <div class="record-grid">
+
+        <div class="col-left">
+        <!-- ค้นหาพนักงาน -->
+        <div class="card">
+          <div class="card-head">
+            <h3><span class="h-ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5z"/></svg></span> <span id="emp-card-title">ข้อมูลพนักงาน</span></h3>
+            <div class="nav-more" id="emp-search-more">
+              <button class="btn-more" id="btn-more" type="button">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                ค้นหา <span class="caret">▾</span>
+              </button>
+              <div class="more-menu hidden" id="more-menu">
+                <button class="menu-item" data-tab="search-name" type="button">🔎 ค้นหารายชื่อ</button>
+                <button class="menu-item" data-tab="search-dept" type="button">🏢 ค้นหาหน่วยงาน</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="emp-mode">
+            <button class="emode-btn active" data-mode="emp" type="button">👤 พนักงาน</button>
+            <button class="emode-btn" data-mode="contractor" type="button">🦺 ผู้รับเหมา</button>
+          </div>
+
+          <p class="desc" id="emp-desc">กรอกรหัสพนักงานแล้วกด “เลือก” ระบบจะดึงข้อมูลขึ้นมาอัตโนมัติ (หรือกด “ค้นหา” เพื่อหาตามชื่อ/หน่วยงาน)</p>
+
+          <div id="emp-lookup">
+            <div class="lookup">
+              <div class="col">
+                <label class="req" for="emp-search">รหัสพนักงาน</label>
+                <div class="search-inp">
+                  <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#0b6e86" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="#0b6e86" stroke-width="2" stroke-linecap="round"/></svg>
+                  <input id="emp-search" type="text" placeholder="กรอกรหัสพนักงาน" inputmode="numeric" autocomplete="off">
+                </div>
+              </div>
+              <button class="btn-select" type="button" id="btn-select-emp">เลือก</button>
+            </div>
+            <div class="emp-error field-error" id="emp-error"></div>
+          </div>
+
+          <div id="contractor-fields" class="hidden">
+            <div class="row">
+              <div class="col"><label class="req" for="c-first">ชื่อ</label><input class="inp" id="c-first" type="text" placeholder="ชื่อ"></div>
+              <div class="col"><label class="req" for="c-last">นามสกุล</label><input class="inp" id="c-last" type="text" placeholder="นามสกุล"></div>
+            </div>
+            <div class="row" style="margin-top:12px">
+              <div class="col"><label class="req" for="c-age">อายุ</label><input class="inp" id="c-age" type="number" min="1" max="120" placeholder="อายุ (ปี)"></div>
+              <div class="col"><label class="req" for="c-company">รับเหมาของบริษัท</label><input class="inp" id="c-company" type="text" placeholder="ชื่อบริษัทผู้รับเหมา"></div>
+            </div>
+            <div class="actions" style="margin-top:16px">
+              <button type="button" class="btn-reset" id="c-clear">🗑 ล้าง</button>
+              <button type="button" class="btn-select" id="c-confirm">ยืนยัน</button>
+            </div>
+            <div class="emp-box hidden" id="contractor-box" style="margin-top:14px">
+              <div class="emp-grid">
+                <div class="item"><small>ชื่อ - นามสกุล</small><b id="cb-name">—</b></div>
+                <div class="item"><small>อายุ</small><b id="cb-age">—</b></div>
+                <div class="item"><small>รับเหมาของบริษัท</small><b id="cb-company">—</b></div>
+                <div class="item"><small>ประเภท</small><b><span class="badge-gender" style="background:#fff0e6;color:#c0651f">ผู้รับเหมา</span></b></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="emp-box hidden" id="emp-box">
+            <div class="emp-grid">
+              <div class="item"><small>รหัสพนักงาน</small><b id="e-id">—</b></div>
+              <div class="item"><small>คำนำหน้า</small><b id="e-prefix">—</b></div>
+              <div class="item"><small>ชื่อ - นามสกุล</small><b id="e-name">—</b></div>
+              <div class="item"><small>ชื่อภาษาอังกฤษ</small><b id="e-eng">—</b></div>
+              <div class="item"><small>เพศ</small><b id="e-gender">—</b></div>
+              <div class="item"><small>วันเกิด</small><b id="e-birth">—</b></div>
+              <div class="item"><small>อายุ</small><b id="e-age">—</b></div>
+              <div class="item"><small>ตำแหน่ง</small><b id="e-pos">—</b></div>
+              <div class="item"><small>ด้าน</small><b id="e-sector">—</b></div>
+              <div class="item"><small>ฝ่าย</small><b id="e-div">—</b></div>
+              <div class="item"><small>แผนก</small><b id="e-dept">—</b></div>
+              <div class="item"><small>กลุ่มพนักงาน</small><b id="e-group">—</b></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ประวัติการใช้บริการของพนักงานคนนี้ -->
+        <div class="card history-card hidden" id="history-card">
+          <h3><span class="h-ic"><svg viewBox="0 0 24 24" fill="none"><path d="M12 8v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/></svg></span> ประวัติการใช้บริการ</h3>
+          <p class="desc" id="history-sub">ประวัติการเข้าห้องพยาบาลของพนักงานคนนี้</p>
+          <div id="emp-history"></div>
+        </div>
+        </div><!-- /col-left -->
+
+        <!-- รายละเอียดการให้บริการ -->
+        <div class="card">
+          <h3><span class="h-ic heart"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 11c0 5.5-7 10-7 10z"/></svg></span> รายละเอียดการให้บริการ</h3>
+
+          <div class="form-group">
+            <div class="row">
+              <div class="col">
+                <label>วันที่ให้บริการ <span class="lock-tag">🔒 อัตโนมัติ</span></label>
+                <input class="inp" id="svc-date" type="text" readonly>
+              </div>
+              <div class="col">
+                <label>เวลาที่ให้บริการ <span class="lock-tag">🔒 อัตโนมัติ</span></label>
+                <input class="inp" id="svc-time" type="text" readonly>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="req" for="symptom">อาการป่วย</label>
+            <select class="inp" id="symptom">
+              <option value="">— เลือกอาการ —</option>
+            </select>
+            <input class="inp hidden" id="symptom-other" type="text" placeholder="โปรดระบุอาการ (บังคับกรอก)" style="margin-top:10px">
+          </div>
+
+          <div class="form-group">
+            <label>ชื่อยาที่เบิก / จำนวน / หน่วย</label>
+            <div id="med-list"></div>
+            <button type="button" class="btn-add" id="btn-add-med">+ เพิ่มรายการยา</button>
+          </div>
+
+          <div class="form-group">
+            <label for="note">หมายเหตุ</label>
+            <textarea class="inp" id="note" maxlength="500" placeholder="ข้อมูลเพิ่มเติม (ถ้ามี)"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>ชื่อพยาบาลผู้ให้บริการ</label>
+            <input class="inp" id="nurse-locked" type="text" readonly>
+          </div>
+
+          <div class="actions">
+            <button type="button" class="btn-reset" id="btn-reset">
+              <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M6 7h12M9 7V5h6v2M7 7l1 12h8l1-12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              ล้างฟอร์ม
+            </button>
+            <button type="submit" class="btn-submit">
+              <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="1.7"/><path d="M8 12l2.5 2.5L16 9" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              บันทึก / Submit
+              <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M5 12h13M13 6l6 6-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+
+       </div>
+      </form>
+    </div>
+
+    <!-- ---------- แท็บประวัติ (พยาบาล) ---------- -->
+    <div id="tab-log" class="tab-panel hidden">
+      <div class="card">
+        <h3><span class="h-ic"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span> ประวัติการบันทึก</h3>
+        <div class="log-toolbar">
+          <input class="inp" id="log-search" type="text" placeholder="ค้นหา: โค้ด / รหัสพนักงาน / ชื่อ">
+          <button class="btn-ghost dark" id="btn-export">⬇ ส่งออก CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table class="log">
+            <thead>
+              <tr>
+                <th>โค้ด</th><th>วันที่-เวลา</th><th>รหัสพนง.</th><th>ชื่อ-สกุล</th>
+                <th>อาการ</th><th>ยาที่เบิก</th><th>พยาบาล</th>
+              </tr>
+            </thead>
+            <tbody id="log-body"></tbody>
+          </table>
+        </div>
+        <div class="empty hidden" id="log-empty">ยังไม่มีรายการบันทึก</div>
+      </div>
+    </div>
+
+    <!-- ---------- แท็บค้นหารายชื่อ ---------- -->
+    <div id="tab-search-name" class="hidden">
+      <div class="card">
+        <div class="card-head">
+          <h3><span class="h-ic"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span> ค้นหารายชื่อพนักงาน</h3>
+          <button class="btn-back" data-goto="record" type="button"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> กลับ</button>
+        </div>
+        <p class="desc">พิมพ์ชื่อหรือนามสกุล เลือกจากรายการ แล้วกด “เลือก” เพื่อดึงข้อมูลเข้าหน้าบันทึก</p>
+        <div class="search-inp" style="max-width:420px;margin-bottom:14px">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#0b6e86" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="#0b6e86" stroke-width="2" stroke-linecap="round"/></svg>
+          <input id="search-name-input" type="text" placeholder="พิมพ์ชื่อ หรือ นามสกุล">
+        </div>
+        <div class="table-wrap">
+          <table class="log">
+            <thead><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>แผนก</th><th>ตำแหน่ง</th><th></th></tr></thead>
+            <tbody id="search-name-results"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="search-name-empty">พิมพ์ชื่อเพื่อค้นหา…</div>
+      </div>
+    </div>
+
+    <!-- ---------- แท็บค้นหาหน่วยงาน (แผนก, คอลัมน์ I) ---------- -->
+    <div id="tab-search-dept" class="hidden">
+      <div class="card">
+        <div class="card-head">
+          <h3><span class="h-ic"><svg viewBox="0 0 24 24" fill="none"><path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 21V9h4a1 1 0 0 1 1 1v11M3 21h18M7 8h2M7 12h2M7 16h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span> ค้นหาตามหน่วยงาน (แผนก)</h3>
+          <button class="btn-back" data-goto="record" type="button"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> กลับ</button>
+        </div>
+        <p class="desc">เลือกแผนก ระบบจะแสดงรายชื่อพนักงานในแผนกนั้น แล้วกด “เลือก” เพื่อดึงข้อมูล</p>
+        <select class="inp" id="search-dept-select" style="max-width:420px;margin-bottom:14px">
+          <option value="">— เลือกหน่วยงาน (แผนก) —</option>
+        </select>
+        <div class="table-wrap">
+          <table class="log">
+            <thead><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>ฝ่าย</th><th></th></tr></thead>
+            <tbody id="search-dept-results"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="search-dept-empty">เลือกแผนกเพื่อแสดงรายชื่อ…</div>
+      </div>
+    </div>
+
+    <!-- ==================== ADMIN: แดชบอร์ด ==================== -->
+    <div id="tab-dashboard" class="hidden">
+      <div class="dash-greeting">
+        <div class="dg-left">
+          <h2>สวัสดีค่ะ, <span id="dash-name">—</span> <span class="wave">👋</span></h2>
+          <p>ภาพรวมการให้บริการห้องพยาบาล</p>
+        </div>
+        <div class="dg-right">
+          <button class="btn-refresh" id="dash-report" type="button">🖨 พิมพ์รายงานเดือนนี้</button>
+          <button class="btn-refresh" id="dash-refresh" type="button">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M18 3v4h-4M6 21v-4h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            รีเฟรชข้อมูล
+          </button>
+          <div class="dg-updated"><small>อัปเดตล่าสุด</small><b id="dash-updated">—</b></div>
+        </div>
+      </div>
+
+      <div id="cluster-alert"></div>
+
+      <div class="kpi-row" id="kpi-row"></div>
+
+      <div class="dash-grid">
+        <div class="card ov-card">
+          <div class="ov-head"><span class="h-ic heart"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 11c0 5.5-7 10-7 10z"/></svg></span>
+            <div><h3>อาการยอดนิยม</h3><small>5 อันดับอาการที่พบบ่อย</small></div></div>
+          <div id="dash-symptoms"></div>
+          <button class="ov-foot foot-teal" data-goto="ahistory" type="button"><span>📋 ดูรายละเอียดทั้งหมด</span> <span>›</span></button>
+        </div>
+        <div class="card ov-card">
+          <div class="ov-head"><span class="h-ic green">💊</span>
+            <div><h3>ยาที่จ่ายมากสุด</h3><small>5 อันดับยาที่จ่ายบ่อย</small></div></div>
+          <div id="dash-meds"></div>
+          <button class="ov-foot foot-green" data-goto="stock" type="button"><span>💊 ดูคลังยา</span> <span>›</span></button>
+        </div>
+        <div class="card ov-card">
+          <div class="ov-head"><span class="h-ic purple">🏢</span>
+            <div><h3>แผนกที่ใช้บริการ</h3><small>5 อันดับแผนกที่ใช้บริการบ่อย</small></div></div>
+          <div id="dash-depts"></div>
+          <button class="ov-foot foot-purple" data-goto="analytics" type="button"><span>👥 ดูรายงานแผนก</span> <span>›</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== ADMIN: ประวัติละเอียด ==================== -->
+    <div id="tab-ahistory" class="hidden">
+      <div class="card">
+        <h3 style="margin-bottom:14px"><span class="h-ic"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span> ประวัติการใช้บริการทั้งหมด</h3>
+        <div class="ah-toolbar">
+          <div class="ah-search-wrap">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#0b6e86" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="#0b6e86" stroke-width="2" stroke-linecap="round"/></svg>
+            <input id="ah-search" type="text" placeholder="ค้นหา: โค้ด / รหัส / ชื่อ / แผนก / อาการ">
+          </div>
+          <div class="ah-dates">
+            <input class="inp" id="ah-from" type="date" title="ตั้งแต่วันที่">
+            <span>–</span>
+            <input class="inp" id="ah-to" type="date" title="ถึงวันที่">
+          </div>
+          <div class="ah-actions">
+            <button class="btn-ghost dark" id="ah-export" type="button">⬇ CSV</button>
+            <button class="btn-danger" id="ah-clear" type="button">🗑 ล้างทั้งหมด</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="log">
+            <thead><tr>
+              <th>โค้ด</th><th>วันที่-เวลา</th><th>รหัสพนง.</th><th>ชื่อ-สกุล</th><th>เพศ</th><th>อายุ</th>
+              <th>แผนก</th><th>อาการ</th><th>ยาที่เบิก</th><th>จำนวน</th><th>พยาบาล</th><th></th>
+            </tr></thead>
+            <tbody id="ah-body"></tbody>
+          </table>
+        </div>
+        <div class="empty hidden" id="ah-empty">ไม่มีข้อมูล</div>
+      </div>
+    </div>
+
+    <!-- ==================== ADMIN: วิเคราะห์ (ออกแบบใหม่) ==================== -->
+    <div id="tab-analytics" class="hidden">
+      <div class="admin-head">
+        <div>
+          <h2>วิเคราะห์ข้อมูล</h2>
+          <p class="an-sub" id="an-sub">ภาพรวมเชิงลึกการให้บริการห้องพยาบาล</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select class="inp" id="an-period" style="width:auto;padding:9px 12px">
+            <option value="7">7 วันล่าสุด</option>
+            <option value="14" selected>14 วันล่าสุด</option>
+            <option value="30">30 วันล่าสุด</option>
+            <option value="90">90 วันล่าสุด</option>
+          </select>
+          <button class="btn-ghost dark" id="an-refresh" type="button">↻ รีเฟรช</button>
+        </div>
+      </div>
+
+      <div class="kpi-row" id="an-kpi"></div>
+
+      <div class="dash-grid">
+        <div class="card span2"><h3>📈 แนวโน้มการให้บริการ</h3><div id="an-trend"></div></div>
+        <div class="card"><h3>⚧ สัดส่วนเพศ</h3><div id="an-gender"></div></div>
+        <div class="card"><h3>🤒 อาการที่พบบ่อย</h3><div id="an-symptom"></div></div>
+        <div class="card"><h3>👤 พนักงานที่ใช้บริการบ่อย</h3><div id="an-emp"></div></div>
+        <div class="card"><h3>💊 ยาที่จ่ายบ่อย</h3><div id="an-meds"></div></div>
+        <div class="card"><h3>🎂 ช่วงอายุที่มาใช้บริการ</h3><div id="an-age"></div></div>
+        <div class="card"><h3>👩‍⚕️ ตามพยาบาลผู้ให้บริการ</h3><div id="an-nurse"></div></div>
+      </div>
+    </div>
+
+    <!-- ==================== ADMIN: สต๊อกยา ==================== -->
+    <div id="tab-stock" class="hidden">
+      <div class="admin-head">
+        <h2>สต๊อกยา</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-ghost dark" id="stock-export" type="button">⬇ ส่งออก CSV</button>
+          <button class="btn-ghost dark" id="stock-refresh" type="button">↻ รีเฟรช</button>
+        </div>
+      </div>
+      <div class="kpi-row" id="stock-kpi"></div>
+
+      <div class="stock-alert-grid">
+        <div class="card" id="low-card">
+          <h3><span class="h-ic" style="background:#fdeee0;color:#c07a2a">⚠</span> ยาใกล้หมด / หมดแล้ว</h3>
+          <div id="stock-low"></div>
+        </div>
+        <div class="card" id="exp-card">
+          <h3><span class="h-ic" style="background:#fde9e9;color:#d64545">⏰</span> ยาใกล้หมดอายุ / หมดอายุ</h3>
+          <div id="stock-exp"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><span class="h-ic">📦</span> รายการยาในคลัง</h3>
+        <p class="desc" style="padding-left:0">กด “รับเข้า” เพื่อเพิ่มจำนวน — ยาที่มีวันหมดอายุ กรอกวันที่ด้วย (ไม่มีก็เว้นได้)</p>
+        <div class="table-wrap">
+          <table class="log stock-table">
+            <thead><tr><th>ชื่อยา</th><th>หน่วย</th><th>คงเหลือรวม</th><th>ล็อต (จำนวน · วันหมดอายุ)</th><th style="width:340px">รับเข้าล็อตใหม่ (จำนวน + วันหมดอายุ)</th></tr></thead>
+            <tbody id="stock-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card"><h3><span class="h-ic">🔄</span> ความเคลื่อนไหวล่าสุด</h3><div id="stock-moves"></div></div>
+    </div>
+
+    <!-- ==================== ADMIN: จัดการบัญชี ==================== -->
+    <div id="tab-users" class="hidden">
+      <div class="admin-head">
+        <div><h2>จัดการบัญชีผู้ใช้</h2><p class="an-sub">เพิ่ม/แก้ไข/ลบ พยาบาลและผู้ดูแล · เปลี่ยน PIN ได้อิสระ</p></div>
+        <button class="btn-refresh" id="user-add" type="button">➕ เพิ่มบัญชี</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="log">
+            <thead><tr><th>ชื่อ</th><th>Badge ID</th><th>PIN</th><th>ประเภท</th><th></th></tr></thead>
+            <tbody id="users-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="app-footer">© 2026 MLCare Medical Room System<div class="footer-org">โรงงาน น้ำตาลมิตรลาว จำกัด</div></footer>
+</section>
+
+<!-- ============================================================
+     MODAL เตือน: ยาไม่ตรงกับอาการ
+     ============================================================ -->
+<div class="modal-overlay hidden" id="warn-modal">
+  <div class="modal warn">
+    <div class="warn-ic">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l9 16H3z" fill="#fff3d6" stroke="#e08a1e" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 9v5" stroke="#d9791a" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.2" fill="#d9791a"/></svg>
+    </div>
+    <h3>ยาไม่ตรงกับอาการ</h3>
+    <p id="warn-text"></p>
+    <div class="warn-list" id="warn-list"></div>
+    <div class="warn-actions">
+      <button class="btn-cancel" id="warn-cancel" type="button">ยกเลิก / แก้ไข</button>
+      <button class="btn-proceed" id="warn-proceed" type="button">ยืนยันบันทึกต่อ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL จัดการบัญชี (เพิ่ม/แก้ไข)
+     ============================================================ -->
+<div class="modal-overlay hidden" id="user-modal">
+  <div class="modal" style="max-width:440px;text-align:left">
+    <h3 id="user-modal-title" style="text-align:center;color:var(--teal-deep)">เพิ่มบัญชี</h3>
+    <label style="display:block;margin:6px 0 4px">ชื่อ - นามสกุล</label>
+    <input class="inp" id="u-name" type="text" placeholder="เช่น นางสมหญิง ใจดี">
+    <label style="display:block;margin:12px 0 4px">Badge ID</label>
+    <input class="inp" id="u-badge" type="text" placeholder="เช่น N004">
+    <label style="display:block;margin:12px 0 4px" id="u-pin-label">PIN (อย่างน้อย 4 หลัก)</label>
+    <input class="inp pin-field" id="u-pin" type="text" inputmode="numeric" placeholder="PIN">
+    <label style="display:block;margin:12px 0 4px">ประเภทผู้ใช้</label>
+    <select class="inp" id="u-role">
+      <option value="recoder">พยาบาล (ผู้บันทึก)</option>
+      <option value="Adminstrator">ผู้ดูแลระบบ (Admin)</option>
+    </select>
+    <div id="u-err" style="color:#d64545;font-size:13px;min-height:18px;margin:8px 0"></div>
+    <div class="warn-actions">
+      <button class="btn-cancel" id="u-cancel" type="button">ยกเลิก</button>
+      <button class="btn-proceed" id="u-save" type="button" style="background:linear-gradient(90deg,var(--teal-deep),var(--cyan))">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL ตั้งค่า — เปลี่ยน PIN
+     ============================================================ -->
+<div class="modal-overlay hidden" id="pinchg-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="warn-ic" style="background:#e7f7fa;box-shadow:0 0 0 8px rgba(43,196,214,.12)">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M17 9V7a5 5 0 0 0-10 0v2H5v13h14V9zm-8 0V7a3 3 0 0 1 6 0v2z" fill="#0b6e86"/></svg>
+    </div>
+    <h3 style="color:var(--teal-deep)">เปลี่ยน PIN</h3>
+    <p id="pinchg-who" class="muted" style="color:var(--ink-soft);font-size:13px;margin:0 0 14px"></p>
+    <input class="inp pin-field" id="pinchg-cur" type="password" inputmode="numeric" placeholder="PIN ปัจจุบัน" style="margin-bottom:8px">
+    <input class="inp pin-field" id="pinchg-new" type="password" inputmode="numeric" placeholder="PIN ใหม่ (อย่างน้อย 4 หลัก)" style="margin-bottom:8px">
+    <input class="inp pin-field" id="pinchg-new2" type="password" inputmode="numeric" placeholder="ยืนยัน PIN ใหม่">
+    <div id="pinchg-err" style="color:#d64545;font-size:13px;min-height:18px;margin:8px 0"></div>
+    <div class="warn-actions">
+      <button class="btn-cancel" id="pinchg-cancel" type="button">ยกเลิก</button>
+      <button class="btn-proceed" id="pinchg-ok" type="button" style="background:linear-gradient(90deg,var(--teal-deep),var(--cyan))">บันทึก PIN ใหม่</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL แก้ไขรายการ (admin, ต้องใส่ PIN)
+     ============================================================ -->
+<div class="modal-overlay hidden" id="edit-modal">
+  <div class="modal" style="max-width:480px;text-align:left">
+    <h3 style="text-align:center;color:var(--teal-deep)">✎ แก้ไขรายการ <span id="edit-code"></span></h3>
+    <label style="display:block;margin:6px 0 4px">อาการ</label>
+    <select class="inp" id="edit-symptom"></select>
+    <input class="inp hidden" id="edit-symptom-other" type="text" placeholder="โปรดระบุอาการ" style="margin-top:8px">
+    <label style="display:block;margin:12px 0 4px">หมายเหตุ</label>
+    <textarea class="inp" id="edit-note" style="min-height:60px"></textarea>
+    <label style="display:block;margin:12px 0 4px">PIN ผู้ดูแลระบบ</label>
+    <input class="inp pin-field" id="edit-pin" type="password" inputmode="numeric" placeholder="PIN">
+    <div id="edit-err" style="color:#d64545;font-size:13px;min-height:18px;margin:8px 0"></div>
+    <div class="warn-actions">
+      <button class="btn-cancel" id="edit-cancel" type="button">ยกเลิก</button>
+      <button class="btn-proceed" id="edit-ok" type="button" style="background:linear-gradient(90deg,var(--teal-deep),var(--cyan))">บันทึกการแก้ไข</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL ยืนยันด้วย PIN (ลบ/ล้างประวัติ)
+     ============================================================ -->
+<div class="modal-overlay hidden" id="pin-modal">
+  <div class="modal">
+    <div class="warn-ic" style="background:#fde9e9;box-shadow:0 0 0 8px rgba(214,69,69,.1)">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M17 9V7a5 5 0 0 0-10 0v2H5v13h14V9zm-8 0V7a3 3 0 0 1 6 0v2z" fill="#d64545"/></svg>
+    </div>
+    <h3 id="pin-title" style="color:#c23838">ยืนยันด้วย PIN</h3>
+    <p id="pin-text">กรอก PIN ผู้ดูแลระบบเพื่อดำเนินการ</p>
+    <input id="pin-input" type="password" inputmode="numeric" class="inp pin-field" placeholder="PIN"
+           style="max-width:220px;margin:0 auto 6px;font-size:22px">
+    <div id="pin-err" style="color:#d64545;font-size:13px;min-height:18px;margin-bottom:12px"></div>
+    <div class="warn-actions">
+      <button class="btn-cancel" id="pin-cancel" type="button">ยกเลิก</button>
+      <button class="btn-proceed" id="pin-ok" type="button" style="background:linear-gradient(90deg,#d64545,#e86a6a)">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL แสดงโค้ด
+     ============================================================ -->
+<div class="modal-overlay hidden" id="code-modal">
+  <div class="modal">
+    <div class="check">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h3>บันทึกสำเร็จ</h3>
+    <p>กรุณานำโค้ดนี้ไปบันทึกใน Log Book</p>
+    <div class="code-display" id="code-out">------</div>
+    <div class="code-legend">รหัสอ้างอิง 6 หลัก — นำไปบันทึกใน Log Book</div>
+    <div>
+      <button class="btn-copy" id="btn-print-slip">🖨 พิมพ์สลิป</button>
+      <button class="btn-copy" id="btn-copy">คัดลอกโค้ด</button>
+      <button class="btn-ok" id="btn-ok">ตกลง</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script src="employees.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

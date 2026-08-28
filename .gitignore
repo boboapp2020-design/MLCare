@@ -1,0 +1,8 @@
+# ข้อมูลส่วนบุคคล — ห้าม push ขึ้น repo สาธารณะ
+employees.js
+*.xls
+*.xlsx
+*.csv
+
+# ไฟล์ออกแบบ/ชั่วคราว
+re cord Page.png
