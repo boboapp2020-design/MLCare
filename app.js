@@ -64,14 +64,24 @@
   }
 
   /* ---------- data store (API หรือ localStorage) ---------- */
+  var LS_BOOT = "mlcare_boot";
+  function applyBoot(res) {
+    if (res.users && res.users.length)         DB.nurses = res.users;
+    if (res.employees && res.employees.length) DB.employees = res.employees;
+    if (res.medicines && res.medicines.length) DB.medicines = attachSymptoms(res.medicines).filter(function (m) { return !/ไม่จ่าย|ไม่ได้จ่าย/.test(m.name); });
+    if (res.symptoms && res.symptoms.length)   DB.symptoms = res.symptoms;
+  }
+  /* ใช้ cache เดิมทันที (ไม่ต้องรอเน็ต) */
+  function loadBootCache() {
+    try { var c = JSON.parse(localStorage.getItem(LS_BOOT)); if (c && c.data) { applyBoot(c.data); return true; } } catch (e) {}
+    return false;
+  }
   function bootstrapData() {
     if (!USE_API) return Promise.resolve();
     return apiGet("bootstrap").then(function (res) {
       if (!res || !res.ok) throw new Error((res && res.error) || "bootstrap failed");
-      if (res.users && res.users.length)         DB.nurses = res.users;
-      if (res.employees && res.employees.length) DB.employees = res.employees;
-      if (res.medicines && res.medicines.length) DB.medicines = attachSymptoms(res.medicines).filter(function (m) { return !/ไม่จ่าย|ไม่ได้จ่าย/.test(m.name); });
-      if (res.symptoms && res.symptoms.length)   DB.symptoms = res.symptoms;
+      applyBoot(res);
+      try { localStorage.setItem(LS_BOOT, JSON.stringify({ t: Date.now(), data: res })); } catch (e) {}
     });
   }
   function storeAddRecord(rec) {
@@ -1394,6 +1404,7 @@
 
     $("symptom").addEventListener("change", onSymptomChange);
 
+    loadBootCache();   // แสดงข้อมูลจาก cache ทันที แล้วค่อยอัปเดตสดเบื้องหลัง
     setConnBadge();
     tickClock(); setInterval(tickClock, 1000);
     updateQueueBadge();
