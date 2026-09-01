@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MLCare · Medical Room System</title>
 <link rel="icon" href="ICon.png">
+<!-- PWA: ติดตั้งเป็นแอปบนคอม/มือถือ -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b6e86">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MLCare">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
@@ -640,5 +648,13 @@
 <script src="employees.js"></script>
 <script src="data.js"></script>
 <script src="app.js"></script>
+<!-- PWA: ลงทะเบียน service worker เพื่อให้ติดตั้ง/ใช้งานออฟไลน์ได้ -->
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function (e) { console.warn("SW register failed:", e); });
+    });
+  }
+</script>
 </body>
 </html>

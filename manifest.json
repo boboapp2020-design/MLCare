@@ -1,0 +1,20 @@
+{
+  "name": "MLCare - ระบบห้องพยาบาล",
+  "short_name": "MLCare",
+  "description": "ระบบบันทึกการใช้บริการห้องพยาบาล โรงงานน้ำตาลมิตรลาว จำกัด",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b6e86",
+  "theme_color": "#0b6e86",
+  "lang": "th",
+  "dir": "ltr",
+  "categories": ["medical", "productivity", "health"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

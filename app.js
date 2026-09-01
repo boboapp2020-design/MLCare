@@ -697,8 +697,8 @@
     if (!iso) return "-";
     var d = new Date(iso); if (isNaN(d.getTime())) return "-";
     var pad = function (n) { return String(n).padStart(2, "0"); };
-    return pad(d.getDate()) + "/" + pad(d.getMonth() + 1) + "/" + (d.getFullYear() + 543) +
-      " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+    return pad(d.getDate()) + "/" + pad(d.getMonth() + 1) + "/" + d.getFullYear() +
+      " " + pad(d.getHours()) + ":" + pad(d.getMinutes());   // ค.ศ.
   }
   function medsToText(r) {
     if (r.medsText) return r.medsText;
@@ -776,7 +776,7 @@
   function printReport() {
     var now = new Date();
     var recs = adminData.records.filter(function (r) { var x = new Date(r.datetime); return x.getFullYear() === now.getFullYear() && x.getMonth() === now.getMonth(); });
-    var monthName = now.toLocaleDateString("th-TH", { month: "long" }) + " " + (now.getFullYear() + 543);
+    var monthName = now.toLocaleDateString("th-TH", { month: "long" }) + " " + now.getFullYear();   // ค.ศ.
     function tbl(title, items) {
       if (!items.length) return '<h2>' + title + '</h2><div class="muted">— ไม่มีข้อมูล —</div>';
       return '<h2>' + title + '</h2><table>' + items.map(function (i, k) { return '<tr><td>' + (k + 1) + '. ' + esc(i.label) + '</td><td style="text-align:right" class="tot">' + i.value + '</td></tr>'; }).join('') + '</table>';
@@ -1317,7 +1317,7 @@
   function tickClock() {
     var d = new Date(), p = function (n) { return String(n).padStart(2, "0"); };
     var sd = $("svc-date"), st = $("svc-time");
-    if (sd) sd.value = p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + (d.getFullYear() + 543);
+    if (sd) sd.value = p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear();   // ค.ศ.
     if (st) st.value = p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
   }
 
