@@ -45,6 +45,8 @@ function doPost(e) {
     if (TOKEN && body.token !== TOKEN) return json({ ok: false, error: 'unauthorized' });
     if (body.action === 'addRecord') return json(addRecord(body.payload || {}));
     if (body.action === 'addStock')  return json(addStock(body.payload || {}));
+    if (body.action === 'clearStock') return json(clearStock(body.payload || {}));
+    if (body.action === 'clearMovements') return json(clearMovements(body.payload || {}));
     if (body.action === 'deleteRecord') return json(deleteRecord(body.payload || {}));
     if (body.action === 'updateRecord') return json(updateRecord(body.payload || {}));
     if (body.action === 'clearRecords') return json(clearRecords(body.payload || {}));
@@ -351,6 +353,41 @@ function addStock(p) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/* ล้างสต๊อกทั้งหมด = ลบทุกแถวล็อต (คงหัวตาราง) ทำให้ยาทุกตัวเหลือ 0
+   ถ้าส่ง payload.name มา จะล้างเฉพาะยาตัวนั้น */
+function clearStock(p) {
+  var lock = LockService.getScriptLock(); lock.waitLock(15000);
+  try {
+    var sh = SS.getSheetByName(LOTS_SHEET);
+    if (!sh) return { ok: true, cleared: 0 };
+    var only = p && S(p.name);
+    var removed = 0;
+    if (only) {
+      var v = sh.getDataRange().getValues();
+      for (var i = v.length - 1; i >= 1; i--) {
+        if (S(v[i][0]) === only) { sh.deleteRow(i + 1); removed++; }
+      }
+      logMove(only, 'ล้างสต๊อก', 0, 0, '', S(p.by) || 'admin');
+    } else {
+      var n = sh.getLastRow() - 1;
+      if (n > 0) { sh.deleteRows(2, n); removed = n; }
+    }
+    return { ok: true, cleared: removed };
+  } finally { lock.releaseLock(); }
+}
+
+/* ล้างประวัติการเคลื่อนไหวสต๊อก (รับเข้า/จ่ายออก) — ลบทุกแถว คงหัวตาราง */
+function clearMovements(p) {
+  var lock = LockService.getScriptLock(); lock.waitLock(15000);
+  try {
+    var sh = SS.getSheetByName(MOVE_SHEET);
+    if (!sh) return { ok: true, cleared: 0 };
+    var n = sh.getLastRow() - 1;
+    if (n > 0) sh.deleteRows(2, n);
+    return { ok: true, cleared: n > 0 ? n : 0 };
+  } finally { lock.releaseLock(); }
 }
 
 /* จ่ายออก = ตัดจากล็อตที่หมดอายุก่อน (ล็อตไม่มีวันหมดอายุ = ตัดท้ายสุด) */
