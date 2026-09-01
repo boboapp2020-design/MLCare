@@ -453,6 +453,7 @@
       <div class="admin-head">
         <h2>สต๊อกยา</h2>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-refresh" id="med-add" type="button">➕ เพิ่มยาใหม่</button>
           <button class="btn-ghost dark" id="stock-export" type="button">⬇ ส่งออก CSV</button>
           <button class="btn-ghost dark" id="stock-refresh" type="button">↻ รีเฟรช</button>
         </div>
@@ -472,10 +473,10 @@
 
       <div class="card">
         <h3><span class="h-ic">📦</span> รายการยาในคลัง</h3>
-        <p class="desc" style="padding-left:0">กด “รับเข้า” เพื่อเพิ่มจำนวน — ยาที่มีวันหมดอายุ กรอกวันที่ด้วย (ไม่มีก็เว้นได้)</p>
+        <p class="desc" style="padding-left:0">กด “รับเข้า” เพื่อเพิ่มจำนวน — ยาที่มีวันหมดอายุ กรอกวันที่ด้วย (ไม่มีก็เว้นได้) · “ปรับยอด” = แก้คงเหลือให้ตรงกับที่นับจริง · “ลบยา” = เอาออกจากรายการ</p>
         <div class="table-wrap">
           <table class="log stock-table">
-            <thead><tr><th>ชื่อยา</th><th>หน่วย</th><th>คงเหลือรวม</th><th>ล็อต (จำนวน · วันหมดอายุ)</th><th style="width:340px">รับเข้าล็อตใหม่ (จำนวน + วันหมดอายุ)</th></tr></thead>
+            <thead><tr><th>ชื่อยา</th><th>หน่วย</th><th>คงเหลือรวม</th><th>ล็อต (จำนวน · วันหมดอายุ)</th><th style="width:340px">รับเข้าล็อตใหม่ (จำนวน + วันหมดอายุ)</th><th>จัดการ</th></tr></thead>
             <tbody id="stock-body"></tbody>
           </table>
         </div>
@@ -556,6 +557,45 @@
     <div class="warn-actions">
       <button class="btn-cancel" id="u-cancel" type="button">ยกเลิก</button>
       <button class="btn-proceed" id="u-save" type="button" style="background:linear-gradient(90deg,var(--teal-deep),var(--cyan))">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL ปรับยอดสต๊อก (แอดมิน)
+     ============================================================ -->
+<div class="modal-overlay hidden" id="adjust-modal">
+  <div class="modal" style="max-width:420px;text-align:left">
+    <h3 style="text-align:center;color:var(--teal-deep)">✎ ปรับยอดคงเหลือ</h3>
+    <p id="adj-med" style="text-align:center;color:var(--ink-soft);font-size:14px;margin:4px 0 12px"></p>
+    <label style="display:block;margin:6px 0 4px">จำนวนคงเหลือใหม่ (ตามที่นับจริง)</label>
+    <input class="inp" id="adj-qty" type="number" min="0" placeholder="เช่น 50">
+    <label style="display:block;margin:12px 0 4px">วันหมดอายุของยอดที่เพิ่ม (ถ้าปรับเพิ่ม — เว้นได้)</label>
+    <input class="inp" id="adj-exp" type="date">
+    <div id="adj-err" style="color:#d64545;font-size:13px;min-height:18px;margin:8px 0"></div>
+    <div class="warn-actions">
+      <button class="btn-cancel" id="adj-cancel" type="button">ยกเลิก</button>
+      <button class="btn-proceed" id="adj-save" type="button" style="background:linear-gradient(90deg,var(--teal-deep),var(--cyan))">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL เพิ่มยาใหม่ (แอดมิน)
+     ============================================================ -->
+<div class="modal-overlay hidden" id="med-modal">
+  <div class="modal" style="max-width:440px;text-align:left">
+    <h3 style="text-align:center;color:var(--teal-deep)">➕ เพิ่มยาใหม่</h3>
+    <label style="display:block;margin:6px 0 4px">ชื่อยา</label>
+    <input class="inp" id="m-name" type="text" placeholder="เช่น Paracetamol 500 mg">
+    <label style="display:block;margin:12px 0 4px">หน่วยเบิก</label>
+    <input class="inp" id="m-unit" type="text" placeholder="เช่น เม็ด / ขวด / หลอด / กล่อง">
+    <label style="display:block;margin:12px 0 4px">อาการที่รักษา (เว้นได้)</label>
+    <input class="inp" id="m-treats" type="text" placeholder="เช่น แก้ปวด ลดไข้">
+    <div id="m-err" style="color:#d64545;font-size:13px;min-height:18px;margin:8px 0"></div>
+    <div class="warn-actions">
+      <button class="btn-cancel" id="m-cancel" type="button">ยกเลิก</button>
+      <button class="btn-proceed" id="m-save" type="button" style="background:linear-gradient(90deg,var(--teal-deep),var(--cyan))">บันทึก</button>
     </div>
   </div>
 </div>

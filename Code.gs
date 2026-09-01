@@ -45,6 +45,9 @@ function doPost(e) {
     if (TOKEN && body.token !== TOKEN) return json({ ok: false, error: 'unauthorized' });
     if (body.action === 'addRecord') return json(addRecord(body.payload || {}));
     if (body.action === 'addStock')  return json(addStock(body.payload || {}));
+    if (body.action === 'adjustStock') return json(adjustStock(body.payload || {}));
+    if (body.action === 'addMedicine') return json(addMedicine(body.payload || {}));
+    if (body.action === 'deleteMedicine') return json(deleteMedicine(body.payload || {}));
     if (body.action === 'clearStock') return json(clearStock(body.payload || {}));
     if (body.action === 'clearMovements') return json(clearMovements(body.payload || {}));
     if (body.action === 'deleteRecord') return json(deleteRecord(body.payload || {}));
@@ -353,6 +356,90 @@ function addStock(p) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/* ปรับยอดคงเหลือให้เท่าจำนวนที่นับจริง (แอดมิน)
+   - เพิ่ม: สร้างล็อตปรับยอดใหม่ (ใส่วันหมดอายุได้)
+   - ลด: ตัดจากล็อตหมดอายุก่อน (FEFO) */
+function adjustStock(p) {
+  var lock = LockService.getScriptLock(); lock.waitLock(15000);
+  try {
+    var name = S(p.name), target = parseInt(p.qty, 10), by = S(p.by);
+    if (!name || isNaN(target) || target < 0) return { ok: false, error: 'ข้อมูลไม่ถูกต้อง' };
+    var sh = getLotsSheet();
+    var cur = medTotal(sh, name);
+    if (target === cur) return { ok: true, balance: cur, delta: 0 };
+    if (target > cur) {
+      var exp = ''; if (S(p.expiry)) { var ed = new Date(S(p.expiry)); if (!isNaN(ed.getTime())) exp = ed; }
+      sh.appendRow([name, S(p.unit), target - cur, exp, new Date()]);
+    } else {
+      var need = cur - target;
+      var v = sh.getDataRange().getValues(), rows = [];
+      for (var r = 1; r < v.length; r++) {
+        if (S(v[r][0]) === name && (Number(v[r][2]) || 0) > 0)
+          rows.push({ row: r + 1, qty: Number(v[r][2]) || 0, exp: v[r][3] ? new Date(v[r][3]).getTime() : 8.64e15 });
+      }
+      rows.sort(function (a, b) { return a.exp - b.exp; });
+      for (var j = 0; j < rows.length && need > 0; j++) {
+        var take = Math.min(need, rows[j].qty);
+        sh.getRange(rows[j].row, 3).setValue(rows[j].qty - take);
+        need -= take;
+      }
+    }
+    var total = medTotal(sh, name);
+    logMove(name, 'ปรับยอด', target - cur, total, '', by);
+    return { ok: true, balance: total, delta: target - cur };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  } finally { lock.releaseLock(); }
+}
+
+/* เพิ่มรายการยาใหม่เข้าแคตตาล็อก (แท็บ "ประเภทยา") — ต้องยืนยัน PIN แอดมิน */
+function addMedicine(p) {
+  if (!isAdminPin(p.adminPin)) return { ok: false, error: 'PIN ผู้ดูแลไม่ถูกต้อง' };
+  var name = S(p.name), unit = S(p.unit), treats = S(p.treats);
+  if (!name || !unit) return { ok: false, error: 'กรอกชื่อยาและหน่วยให้ครบ' };
+  var lock = LockService.getScriptLock(); lock.waitLock(15000);
+  try {
+    var sh = SS.getSheetByName('ประเภทยา');
+    if (!sh) return { ok: false, error: 'ไม่พบชีต ประเภทยา' };
+    var v = sh.getDataRange().getValues();
+    for (var i = 1; i < v.length; i++) if (S(v[i][0]) === name) return { ok: false, error: 'มียา “' + name + '” อยู่แล้ว' };
+    sh.appendRow([name, unit, treats]);
+    logAudit('เพิ่มรายการยา', name + ' (' + unit + ')', p.adminPin);
+    clearBootCache();
+    return { ok: true };
+  } finally { lock.releaseLock(); }
+}
+
+/* ลบรายการยาออกจากแคตตาล็อก — ต้องยืนยัน PIN แอดมิน
+   กันพลาด: ถ้ายังมีสต๊อกเหลือ ต้องปรับยอดเป็น 0 ก่อน */
+function deleteMedicine(p) {
+  if (!isAdminPin(p.adminPin)) return { ok: false, error: 'PIN ผู้ดูแลไม่ถูกต้อง' };
+  var name = S(p.name);
+  if (!name) return { ok: false, error: 'ไม่ระบุชื่อยา' };
+  var lock = LockService.getScriptLock(); lock.waitLock(15000);
+  try {
+    var lots = SS.getSheetByName(LOTS_SHEET);
+    if (lots) {
+      var remain = medTotal(lots, name);
+      if (remain > 0) return { ok: false, error: 'ยา “' + name + '” ยังมีสต๊อกเหลือ ' + remain + ' — ปรับยอดเป็น 0 ก่อนลบ' };
+      var lv = lots.getDataRange().getValues();
+      for (var r = lv.length - 1; r >= 1; r--) if (S(lv[r][0]) === name) lots.deleteRow(r + 1);  // เก็บกวาดล็อตเปล่า
+    }
+    var sh = SS.getSheetByName('ประเภทยา');
+    if (!sh) return { ok: false, error: 'ไม่พบชีต ประเภทยา' };
+    var v = sh.getDataRange().getValues();
+    for (var i = v.length - 1; i >= 1; i--) {
+      if (S(v[i][0]) === name) {
+        sh.deleteRow(i + 1);
+        logAudit('ลบรายการยา', name, p.adminPin);
+        clearBootCache();
+        return { ok: true };
+      }
+    }
+    return { ok: false, error: 'ไม่พบยา “' + name + '” ในแคตตาล็อก' };
+  } finally { lock.releaseLock(); }
 }
 
 /* ล้างสต๊อกทั้งหมด = ลบทุกแถวล็อต (คงหัวตาราง) ทำให้ยาทุกตัวเหลือ 0

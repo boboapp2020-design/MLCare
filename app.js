@@ -1069,7 +1069,7 @@
   }
   function renderStock() {
     if (!USE_API) {
-      $("stock-body").innerHTML = '<tr><td colspan="4" class="empty">ระบบสต๊อกต้องเชื่อมฐานข้อมูล (ตั้ง API_URL)</td></tr>';
+      $("stock-body").innerHTML = '<tr><td colspan="6" class="empty">ระบบสต๊อกต้องเชื่อมฐานข้อมูล (ตั้ง API_URL)</td></tr>';
       $("stock-kpi").innerHTML = ""; $("stock-moves").innerHTML = ""; return;
     }
     // รวมแคตตาล็อกยา + ล็อตจากชีต (แสดงยาทุกตัว, per-row รับเข้าล็อตใหม่)
@@ -1124,14 +1124,21 @@
         "<td class='lots-cell'>" + lotsCell + "</td>" +
         "<td><div class='stock-add'><input type='number' min='1' class='inp stock-in' placeholder='จำนวน'>" +
         "<input type='date' class='inp stock-exp-in' title='วันหมดอายุ (ถ้ามี)'>" +
-        "<button class='btn-add-stock' data-name='" + esc(s.name) + "' data-unit='" + esc(s.unit) + "'>+ รับเข้า</button></div></td></tr>";
-    }).join('') || '<tr><td colspan="5" class="empty">ไม่มีรายการยา</td></tr>';
+        "<button class='btn-add-stock' data-name='" + esc(s.name) + "' data-unit='" + esc(s.unit) + "'>+ รับเข้า</button></div></td>" +
+        "<td><div class='stock-manage'>" +
+        "<button class='btn-mini btn-adjust' data-name='" + esc(s.name) + "' data-unit='" + esc(s.unit) + "' data-qty='" + s.qty + "' title='แก้คงเหลือให้ตรงกับที่นับจริง'>✎ ปรับยอด</button>" +
+        "<button class='btn-mini btn-delmed' data-name='" + esc(s.name) + "' title='ลบยาออกจากรายการ (ต้องใช้ PIN)'>🗑 ลบยา</button>" +
+        "</div></td></tr>";
+    }).join('') || '<tr><td colspan="6" class="empty">ไม่มีรายการยา</td></tr>';
     var mv = adminData.movements;
     $("stock-moves").innerHTML = mv.length ? mv.slice(0, 60).map(function (m) {
-      var cls = m.type === "รับเข้า" ? "mv-in" : "mv-out";
+      var qtyTxt;
+      if (m.type === "ปรับยอด") qtyTxt = (m.qty >= 0 ? "+" : "") + m.qty;          // delta มีเครื่องหมายในตัว
+      else qtyTxt = (m.type === "รับเข้า" ? "+" : "−") + m.qty;
+      var cls = (m.type === "รับเข้า" || (m.type === "ปรับยอด" && m.qty >= 0)) ? "mv-in" : "mv-out";
       return "<div class='mv-item " + cls + "'><span class='mv-time'>" + esc(fmtDate(m.time)) + "</span>" +
         "<span class='mv-name'>" + esc(m.name) + "</span><span class='mv-type'>" + esc(m.type) + "</span>" +
-        "<span class='mv-qty'>" + (m.type === "รับเข้า" ? "+" : "−") + m.qty + "</span>" +
+        "<span class='mv-qty'>" + qtyTxt + "</span>" +
         "<span class='mv-bal'>คงเหลือ " + m.balance + "</span></div>";
     }).join('') : '<div class="empty">— ยังไม่มีความเคลื่อนไหว —</div>';
   }
@@ -1148,6 +1155,65 @@
       toast("✅ รับเข้าแล้ว: " + name + " +" + qty + " (คงเหลือ " + res.balance + ")");
       adminLoad(true);
     }).catch(function (e) { toast("เพิ่มสต๊อกไม่สำเร็จ: " + e.message); btn.disabled = false; });
+  }
+  /* ---------- ปรับยอด / เพิ่มยา / ลบยา (แอดมิน) ---------- */
+  /* โหลด catalog สดจากชีตทันที (ข้าม cache ทุกชั้น) — ให้ dropdown/สต๊อกอัปเดตไว */
+  function refreshBootFresh() {
+    return apiGet("bootstrap", { fresh: 1 }).then(function (res) {
+      if (res && res.ok) {
+        applyBoot(res);
+        try { localStorage.setItem(LS_BOOT, JSON.stringify({ t: Date.now(), data: res })); } catch (e) {}
+      }
+    });
+  }
+  var adjTarget = null;
+  function openAdjust(btn) {
+    adjTarget = { name: btn.getAttribute("data-name"), unit: btn.getAttribute("data-unit") };
+    $("adj-med").textContent = adjTarget.name + " — คงเหลือปัจจุบัน " + btn.getAttribute("data-qty") + " " + adjTarget.unit;
+    $("adj-qty").value = btn.getAttribute("data-qty");
+    $("adj-exp").value = ""; $("adj-err").textContent = "";
+    show($("adjust-modal")); setTimeout(function () { $("adj-qty").select(); }, 50);
+  }
+  function saveAdjust() {
+    if (!adjTarget) return;
+    var qty = parseInt($("adj-qty").value, 10);
+    if (isNaN(qty) || qty < 0) { $("adj-err").textContent = "กรอกจำนวนคงเหลือใหม่ (0 ขึ้นไป)"; return; }
+    var btn = $("adj-save"); btn.disabled = true; $("adj-err").textContent = "กำลังบันทึก…";
+    apiPost("adjustStock", { name: adjTarget.name, unit: adjTarget.unit, qty: qty, expiry: $("adj-exp").value, by: currentNurse ? currentNurse.name : "admin" })
+      .then(function (res) {
+        btn.disabled = false;
+        if (!res || !res.ok) { $("adj-err").textContent = (res && res.error) || "บันทึกไม่สำเร็จ"; return; }
+        hide($("adjust-modal"));
+        toast("✅ ปรับยอด " + adjTarget.name + " เป็น " + res.balance + (res.delta ? " (" + (res.delta > 0 ? "+" : "") + res.delta + ")" : ""));
+        adminLoad(true);
+      })
+      .catch(function (e) { btn.disabled = false; $("adj-err").textContent = "บันทึกไม่สำเร็จ: " + e.message; });
+  }
+  function openMedAdd() {
+    $("m-name").value = ""; $("m-unit").value = ""; $("m-treats").value = ""; $("m-err").textContent = "";
+    show($("med-modal")); setTimeout(function () { $("m-name").focus(); }, 50);
+  }
+  function saveMedAdd() {
+    var name = $("m-name").value.trim(), unit = $("m-unit").value.trim(), treats = $("m-treats").value.trim();
+    if (!name || !unit) { $("m-err").textContent = "กรอกชื่อยาและหน่วยให้ครบ"; return; }
+    hide($("med-modal"));
+    showPin("เพิ่มยาใหม่", "ยืนยันการเพิ่ม “" + name + "” ด้วย PIN ผู้ดูแลระบบ", function (pin) {
+      return apiPost("addMedicine", { name: name, unit: unit, treats: treats, adminPin: pin }).then(function (res) {
+        if (!res || !res.ok) throw new Error((res && res.error) || "เพิ่มไม่สำเร็จ");
+        toast("✅ เพิ่มยา “" + name + "” แล้ว");
+        return refreshBootFresh().then(function () { adminLoad(true); });
+      });
+    });
+  }
+  function deleteMed(btn) {
+    var name = btn.getAttribute("data-name");
+    showPin("ลบรายการยา", "ยืนยันการลบ “" + name + "” ออกจากรายการยา ด้วย PIN ผู้ดูแลระบบ", function (pin) {
+      return apiPost("deleteMedicine", { name: name, adminPin: pin }).then(function (res) {
+        if (!res || !res.ok) throw new Error((res && res.error) || "ลบไม่สำเร็จ");
+        toast("🗑 ลบยา “" + name + "” แล้ว");
+        return refreshBootFresh().then(function () { adminLoad(true); });
+      });
+    });
   }
   function exportStockCSV() {
     var stock = adminData.stock.filter(function (s) { return !/ไม่จ่าย|ไม่ได้จ่าย/.test(s.name); });
@@ -1423,7 +1489,17 @@
     $("ah-export").addEventListener("click", function () { exportCSV(adminData.records); });
     $("dash-report").addEventListener("click", printReport);
     $("btn-print-slip").addEventListener("click", printSlip);
-    $("stock-body").addEventListener("click", function (e) { var b = e.target.closest(".btn-add-stock"); if (b) addStockFromBtn(b); });
+    $("stock-body").addEventListener("click", function (e) {
+      var b = e.target.closest(".btn-add-stock"); if (b) { addStockFromBtn(b); return; }
+      var a = e.target.closest(".btn-adjust"); if (a) { openAdjust(a); return; }
+      var d = e.target.closest(".btn-delmed"); if (d) deleteMed(d);
+    });
+    $("med-add").addEventListener("click", openMedAdd);
+    $("m-save").addEventListener("click", saveMedAdd);
+    $("m-cancel").addEventListener("click", function () { hide($("med-modal")); });
+    $("adj-save").addEventListener("click", saveAdjust);
+    $("adj-cancel").addEventListener("click", function () { hide($("adjust-modal")); });
+    $("adj-qty").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); saveAdjust(); } });
     $("stock-body").addEventListener("keydown", function (e) {
       if (e.key === "Enter") { var inp = e.target.closest(".stock-in"); if (inp) { e.preventDefault(); var b = inp.parentNode.querySelector(".btn-add-stock"); if (b) addStockFromBtn(b); } }
     });
