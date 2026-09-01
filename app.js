@@ -7,6 +7,7 @@
   var LS_RECORDS = "mlcare_records";
   var LS_SESSION = "mlcare_session";
   var LS_QUEUE = "mlcare_queue";
+  var LS_TAB = "mlcare_tab";          // จำแท็บล่าสุด — F5 แล้วกลับหน้าเดิม
 
   var USE_API = (typeof API_URL !== "undefined" && API_URL && ("" + API_URL).trim() !== "");
   var API = USE_API ? ("" + API_URL).trim() : "";
@@ -281,7 +282,15 @@
     if (small) small.innerHTML = admin ? "ผู้ดูแลระบบ • Admin" : ("พยาบาลผู้ให้บริการ • รหัส " + esc(currentNurse.code));
     document.body.classList.toggle("is-admin", admin);
     adminData.loaded = false;
-    switchTab(admin ? "dashboard" : "record");
+    /* กู้แท็บล่าสุด (ถ้ามีและตรงบทบาท) — รีเฟรชแล้วอยู่หน้าเดิม */
+    var saved = "";
+    try { saved = localStorage.getItem(LS_TAB) || ""; } catch (e) {}
+    var ok = saved && $("tab-" + saved);
+    if (ok) {
+      var btn = document.querySelector('.tab[data-tab="' + saved + '"], .menu-item[data-tab="' + saved + '"]');
+      if (btn && btn.dataset.role) { ok = (btn.dataset.role === "admin") === admin; }   // แท็บผูกบทบาทต้องตรงกัน
+    }
+    switchTab(ok ? saved : (admin ? "dashboard" : "record"));
   }
   function logout() {
     localStorage.removeItem(LS_SESSION); currentNurse = null;
@@ -1365,6 +1374,7 @@
   var PANELS = ["record", "log", "nstock", "search-name", "search-dept", "dashboard", "ahistory", "analytics", "stock", "users"];
   var ADMIN_TABS = { dashboard: 1, ahistory: 1, analytics: 1, stock: 1 };
   function switchTab(name) {
+    try { localStorage.setItem(LS_TAB, name); } catch (e) {}   // จำหน้าเดิมไว้ (F5 ไม่หลุด)
     PANELS.forEach(function (p) { var el = $("tab-" + p); if (el) el.classList.toggle("hidden", p !== name); });
     var tabs = document.querySelectorAll(".tab[data-tab], .menu-item[data-tab]");
     for (var i = 0; i < tabs.length; i++) tabs[i].classList.toggle("active", tabs[i].dataset.tab === name);
