@@ -1058,7 +1058,7 @@
     if (!iso) return "-";
     var d = new Date(iso); if (isNaN(d.getTime())) return "-";
     var p = function (n) { return String(n).padStart(2, "0"); };
-    return p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + (d.getFullYear() + 543);
+    return p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear();  // ค.ศ.
   }
   function expiryInfo(iso) {
     if (!iso) return { has: false };
