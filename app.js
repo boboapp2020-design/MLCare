@@ -15,7 +15,7 @@
   var DB = {
     nurses:    (typeof NURSES    !== "undefined") ? NURSES.slice()    : [],
     employees: (typeof EMPLOYEES !== "undefined") ? EMPLOYEES.slice() : [],
-    medicines: (typeof MEDICINES !== "undefined") ? MEDICINES.slice() : [],
+    medicines: (typeof MEDICINES !== "undefined") ? sortMeds(MEDICINES.slice()) : [],
     symptoms:  (typeof SYMPTOMS  !== "undefined") ? SYMPTOMS.slice()  : []
   };
   /* map ยา -> อาการ (จาก data.js) ใช้ตรวจ "ยาตรงกับอาการ" กับยาที่ดึงจากชีต */
@@ -65,10 +65,18 @@
 
   /* ---------- data store (API หรือ localStorage) ---------- */
   var LS_BOOT = "mlcare_boot";
+  /* เรียงชื่อยาตามตัวอักษร: อังกฤษ A→Z ก่อน แล้วตามด้วยไทย ก→ฮ */
+  function sortMeds(list) {
+    return list.sort(function (a, b) {
+      var ta = /^[฀-๿]/.test(a.name || ""), tb = /^[฀-๿]/.test(b.name || "");
+      if (ta !== tb) return ta ? 1 : -1;
+      return (a.name || "").localeCompare(b.name || "", ta ? "th" : "en", { sensitivity: "base", numeric: true });
+    });
+  }
   function applyBoot(res) {
     if (res.users && res.users.length)         DB.nurses = res.users;
     if (res.employees && res.employees.length) DB.employees = res.employees;
-    if (res.medicines && res.medicines.length) DB.medicines = attachSymptoms(res.medicines).filter(function (m) { return !/ไม่จ่าย|ไม่ได้จ่าย/.test(m.name); });
+    if (res.medicines && res.medicines.length) DB.medicines = sortMeds(attachSymptoms(res.medicines).filter(function (m) { return !/ไม่จ่าย|ไม่ได้จ่าย/.test(m.name); }));
     if (res.symptoms && res.symptoms.length)   DB.symptoms = res.symptoms;
   }
   /* ใช้ cache เดิมทันที (ไม่ต้องรอเน็ต) */
