@@ -231,6 +231,15 @@ function getRecords(empId) {
   return out;
 }
 
+/* ทะเบียนโค้ดถาวร — จดทุกโค้ดที่เคยออก เพื่อการันตีว่าโค้ด 6 หลัก "ไม่มีทางซ้ำ"
+   แม้บันทึกจะถูกลบ/ล้างประวัติไปแล้วก็ตาม */
+var CODES_SHEET = 'โค้ดที่ออกแล้ว';
+function getCodesSheet() {
+  var sh = SS.getSheetByName(CODES_SHEET);
+  if (!sh) { sh = SS.insertSheet(CODES_SHEET); sh.appendRow(['โค้ด', 'ออกเมื่อ']); sh.setFrozenRows(1); sh.hideSheet(); }
+  return sh;
+}
+
 function addRecord(p) {
   var lock = LockService.getScriptLock();
   lock.waitLock(15000); // กันโค้ดซ้ำเมื่อบันทึกพร้อมกันหลายเครื่อง
@@ -238,12 +247,20 @@ function addRecord(p) {
     var sh = getRecordsSheet();
     var nurseCode = S(p.nurseCode) || '00';
 
-    // โค้ด 6 หลัก — ใช้ที่ client ส่งมา (กรณีออฟไลน์) ถ้าไม่ซ้ำ, ไม่งั้นสุ่มใหม่
+    // โค้ด 6 หลัก — ห้ามซ้ำกับ "ทุกโค้ดที่เคยออก" (ทะเบียนถาวร + บันทึกปัจจุบัน)
     var data = sh.getDataRange().getValues();
     var used = {};
     for (var i = 1; i < data.length; i++) used[S(data[i][0])] = true;
+    var csh = getCodesSheet();
+    var cv = csh.getDataRange().getValues();
+    for (var c = 1; c < cv.length; c++) used[S(cv[c][0])] = true;
     var code = S(p.code);
-    if (!code || used[code]) { do { code = '' + Math.floor(100000 + Math.random() * 900000); } while (used[code]); }
+    if (!code || used[code]) {
+      var tries = 0;
+      do { code = '' + Math.floor(100000 + Math.random() * 900000); tries++; } while (used[code] && tries < 3000000);
+      if (used[code]) return { ok: false, error: 'โค้ด 6 หลักถูกใช้ครบทุกหมายเลขแล้ว (900,000 โค้ด)' };
+    }
+    csh.appendRow([code, new Date()]);   // จดเข้าทะเบียนถาวรทันที
 
     var when = p.datetime ? new Date(p.datetime) : new Date();
     if (isNaN(when.getTime())) when = new Date();
