@@ -266,8 +266,8 @@
           <input class="inp" id="log-search" type="text" placeholder="ค้นหา: โค้ด / รหัสพนักงาน / ชื่อ">
           <button class="btn-ghost dark" id="btn-export">⬇ ส่งออก CSV</button>
         </div>
-        <div class="table-wrap">
-          <table class="log">
+        <div class="table-wrap log-scroll" id="log-scroll">
+          <table class="log sticky-head">
             <thead>
               <tr>
                 <th>โค้ด</th><th>วันที่-เวลา</th><th>รหัสพนง.</th><th>ชื่อ-สกุล</th>
@@ -277,6 +277,7 @@
             <tbody id="log-body"></tbody>
           </table>
         </div>
+        <div class="log-count" id="log-count"></div>
         <div class="empty hidden" id="log-empty">ยังไม่มีรายการบันทึก</div>
       </div>
     </div>

@@ -462,6 +462,10 @@ textarea.inp{resize:vertical;min-height:70px}
    LOG (ประวัติการบันทึก)
    ============================================================ */
 .table-wrap{overflow-x:auto}
+/* ประวัติการบันทึก: โชว์ ~20 แถว ที่เหลือเลื่อนดูในตาราง */
+.log-scroll{max-height:calc(20 * 45px + 46px);overflow-y:auto}
+table.log.sticky-head thead th{position:sticky;top:0;z-index:2}
+.log-count{margin-top:8px;font-size:12.5px;color:var(--ink-soft);text-align:right}
 table.log{width:100%;border-collapse:collapse;font-size:14px;min-width:760px}
 table.log th,table.log td{padding:11px 12px;text-align:left;border-bottom:1px solid var(--line)}
 table.log th{background:#eafafc;color:var(--teal-deep);font-weight:700;white-space:nowrap}

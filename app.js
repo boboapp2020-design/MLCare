@@ -726,26 +726,46 @@
       lastRecords = list; renderLogList($("log-search") ? $("log-search").value : "");
     }).catch(function (e) { toast("โหลดประวัติไม่สำเร็จ: " + e.message); });
   }
+  /* ประวัติ: แสดงทีละ 20 แถว แล้วโหลดเพิ่มเมื่อเลื่อนลง */
+  var LOG_PAGE = 20;
+  var logRows = [], logShown = 0;
+  function logRowHTML(r) {
+    return '<td class="code-cell">' + esc(r.code) + "</td>" +
+      "<td>" + esc(fmtDate(r.datetime)) + "</td>" +
+      "<td>" + esc(r.empId) + "</td>" +
+      "<td>" + esc(r.empName) + "</td>" +
+      "<td>" + esc(r.symptom) + "</td>" +
+      "<td>" + esc(medsToText(r)) + "</td>" +
+      "<td>" + esc(r.nurseName) + "</td>";
+  }
+  function logCount() {
+    var el = $("log-count"); if (!el) return;
+    el.textContent = logRows.length ? ("แสดง " + logShown + " จาก " + logRows.length + " รายการ" + (logShown < logRows.length ? " · เลื่อนลงเพื่อดูเพิ่ม" : "")) : "";
+  }
+  function logAppend() {
+    if (logShown >= logRows.length) return;
+    var body = $("log-body"), frag = document.createDocumentFragment();
+    var end = Math.min(logShown + LOG_PAGE, logRows.length);
+    for (var i = logShown; i < end; i++) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = logRowHTML(logRows[i]);
+      frag.appendChild(tr);
+    }
+    body.appendChild(frag);
+    logShown = end;
+    logCount();
+  }
   function renderLogList(filter) {
     var recs = lastRecords.slice().reverse();
     var q = (filter || "").trim().toLowerCase();
     if (q) recs = recs.filter(function (r) {
       return ((r.code || "") + " " + (r.empId || "") + " " + (r.empName || "") + " " + (r.nurseName || "")).toLowerCase().indexOf(q) >= 0;
     });
-    var body = $("log-body"); body.innerHTML = "";
+    logRows = recs; logShown = 0;
+    $("log-body").innerHTML = "";
+    var sc = $("log-scroll"); if (sc) sc.scrollTop = 0;
     if (recs.length === 0) show($("log-empty")); else hide($("log-empty"));
-    recs.forEach(function (r) {
-      var tr = document.createElement("tr");
-      tr.innerHTML =
-        '<td class="code-cell">' + esc(r.code) + "</td>" +
-        "<td>" + esc(fmtDate(r.datetime)) + "</td>" +
-        "<td>" + esc(r.empId) + "</td>" +
-        "<td>" + esc(r.empName) + "</td>" +
-        "<td>" + esc(r.symptom) + "</td>" +
-        "<td>" + esc(medsToText(r)) + "</td>" +
-        "<td>" + esc(r.nurseName) + "</td>";
-      body.appendChild(tr);
-    });
+    logAppend();
   }
   /* พิมพ์ผ่านหน้าต่างใหม่ (#8 สลิป, #11 รายงาน) */
   function printHTML(title, bodyHtml) {
@@ -1474,6 +1494,9 @@
       var b = e.target.closest(".btn-back[data-goto]"); if (b) switchTab(b.getAttribute("data-goto"));
     });
     $("log-search").addEventListener("input", function () { renderLogList(this.value); });
+    $("log-scroll").addEventListener("scroll", function () {
+      if (this.scrollTop + this.clientHeight >= this.scrollHeight - 80) logAppend();   // ใกล้ท้ายตาราง → โหลดอีก 20
+    });
     $("btn-export").addEventListener("click", function () { exportCSV(); });
 
     // Admin
