@@ -343,13 +343,8 @@
     $("e-name").textContent = (emp.firstName || "") + " " + (emp.lastName || "");
     $("e-eng").textContent = emp.engName || "-";
     $("e-gender").innerHTML = '<span class="badge-gender ' + (emp.gender === "ชาย" ? "g-male" : emp.gender === "หญิง" ? "g-female" : "") + '">' + esc(emp.gender || "-") + "</span>";
-    $("e-birth").textContent = emp.birth || "-";
     $("e-age").textContent = emp.age ? emp.age + " ปี" : "-";
-    $("e-pos").textContent = emp.position || "-";
-    $("e-sector").textContent = emp.sector || "-";
-    $("e-div").textContent = emp.division || "-";
     $("e-dept").textContent = emp.department || "-";
-    $("e-group").textContent = emp.group || "-";
     show($("emp-box"));
     loadEmpHistory(emp.id);
   }
