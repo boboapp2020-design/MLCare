@@ -368,8 +368,7 @@
     if (!list.length) { box.innerHTML = '<div class="empty">— ยังไม่มีประวัติการใช้บริการ —</div>'; return; }
     box.innerHTML = list.slice().reverse().map(function (r) {
       return '<div class="hist-item">' +
-        '<div class="hist-top"><span class="hist-date">' + esc(fmtDate(r.datetime)) + '</span>' +
-        '<span class="hist-code">' + esc(r.code) + '</span></div>' +
+        '<div class="hist-top"><span class="hist-date">' + esc(fmtDate(r.datetime)) + '</span></div>' +
         '<div class="hist-sym">' + esc(r.symptom) + '</div>' +
         '<div class="hist-med">💊 ' + esc(medsToText(r)) + '</div>' +
         '</div>';

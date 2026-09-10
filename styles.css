@@ -247,7 +247,6 @@ table.log td.pick-cell{text-align:right}
 }
 .hist-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:3px}
 .hist-date{font-size:13px;color:var(--ink-soft)}
-.hist-code{font-size:12px;font-weight:800;letter-spacing:1px;color:var(--teal-deep);background:#eafafc;padding:1px 8px;border-radius:20px}
 .hist-sym{font-size:15px;font-weight:700;color:var(--ink)}
 .hist-med{font-size:13px;color:var(--ink-soft);margin-top:2px}
 .card{
