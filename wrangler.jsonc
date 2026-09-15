@@ -1,0 +1,13 @@
+{
+  // MLCare — เว็บ static ล้วน เสิร์ฟผ่าน Cloudflare Workers Static Assets
+  // deploy: npx wrangler deploy
+  "name": "mlcare",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./public",
+    // "none" = ไฟล์ที่ไม่มีจริงตอบ 404 ตามปกติ
+    // (ห้ามใช้ single-page-application เพราะ employees.js ที่ไม่ได้ push
+    //  จะถูกตอบกลับเป็น index.html แล้วทำให้ JS พัง)
+    "not_found_handling": "none"
+  }
+}

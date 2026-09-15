@@ -1,0 +1,19 @@
+# โค้ดและหน้าเว็บ: ให้เบราว์เซอร์เช็คของใหม่ทุกครั้ง (อัปเดตเห็นผลทันทีหลัง deploy)
+/index.html
+  Cache-Control: no-cache
+/sw.js
+  Cache-Control: no-cache
+/app.js
+  Cache-Control: no-cache
+/config.js
+  Cache-Control: no-cache
+/data.js
+  Cache-Control: no-cache
+/styles.css
+  Cache-Control: no-cache
+/manifest.json
+  Cache-Control: no-cache
+
+# รูป/ไอคอน: เก็บ cache ยาวได้ ไม่ค่อยเปลี่ยน
+/*.png
+  Cache-Control: public, max-age=604800
