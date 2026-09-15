@@ -3,6 +3,8 @@
   // deploy: npx wrangler deploy
   "name": "mlcare",
   "compatibility_date": "2026-09-01",
+  // เปิด URL สาธารณะ mlcare.<subdomain>.workers.dev ให้อัตโนมัติตอน deploy
+  "workers_dev": true,
   "assets": {
     "directory": "./public",
     // "none" = ไฟล์ที่ไม่มีจริงตอบ 404 ตามปกติ
