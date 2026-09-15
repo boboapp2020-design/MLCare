@@ -565,6 +565,41 @@ function clearRecords(p) {
 }
 
 /* #5 แก้ไขรายการ (symptom/หมายเหตุ) + ทำเครื่องหมายว่าแก้ไข */
+/* แปลงข้อความยาที่เบิก "ชื่อ xจำนวน หน่วย | ..." กลับเป็น array */
+function parseMedsText(txt) {
+  var s = S(txt); if (!s) return [];
+  return s.split('|').map(function (t) {
+    t = t.trim();
+    var m = t.match(/^(.*?) x(\S+)\s*(.*)$/);
+    return m ? { name: m[1].trim(), qty: m[2], unit: m[3] } : { name: t, qty: '', unit: '' };
+  });
+}
+/* รวมจำนวนต่อชื่อยา (ข้ามรายการ "ไม่จ่ายยา") */
+function medsQtyMap(arr) {
+  var map = {};
+  for (var i = 0; i < (arr || []).length; i++) {
+    var x = arr[i];
+    if (!x || !x.name || isNoDispense(x.name)) continue;
+    var q = parseInt(x.qty, 10); if (isNaN(q) || q <= 0) continue;
+    map[S(x.name)] = (map[S(x.name)] || 0) + q;
+  }
+  return map;
+}
+/* คืนยาเข้าสต๊อก — เติมกลับล็อตที่หมดอายุเร็วสุด (ล็อตเดียวกับที่ FEFO ตัดไป) */
+function returnStock(name, qty, ref, by) {
+  var sh = getLotsSheet();
+  var v = sh.getDataRange().getValues(), best = -1, bestExp = null;
+  for (var r = 1; r < v.length; r++) {
+    if (S(v[r][0]) === S(name)) {
+      var e = v[r][3] ? new Date(v[r][3]).getTime() : 8.64e15;
+      if (best < 0 || e < bestExp) { best = r; bestExp = e; }
+    }
+  }
+  if (best >= 0) sh.getRange(best + 1, 3).setValue((Number(v[best][2]) || 0) + qty);
+  else sh.appendRow([name, '', qty, '', new Date()]);
+  logMove(name, 'คืนสต๊อก', qty, medTotal(sh, name), ref || '', by || '');
+}
+
 function updateRecord(p) {
   if (!isAdminPin(p.pin)) return { ok: false, error: 'PIN ไม่ถูกต้อง' };
   var lock = LockService.getScriptLock(); lock.waitLock(15000);
@@ -574,13 +609,42 @@ function updateRecord(p) {
     var v = sh.getDataRange().getValues();
     for (var i = 1; i < v.length; i++) {
       if (S(v[i][0]) === S(p.code)) {
-        var row = i + 1;
+        var row = i + 1, code = S(p.code), by = S(p.by);
+
+        /* แก้ยาที่เบิก → ปรับสต๊อกตามส่วนต่าง (เพิ่ม=ตัดเพิ่ม, ลด=คืนเข้าคลัง) */
+        if (p.meds) {
+          var oldM = medsQtyMap(parseMedsText(v[i][14]));
+          var newM = medsQtyMap(p.meds);
+          var names = {}, n;
+          for (n in oldM) names[n] = 1;
+          for (n in newM) names[n] = 1;
+          var lots = SS.getSheetByName(LOTS_SHEET);
+          if (lots) {
+            for (n in names) {                     // ตรวจให้ครบก่อน ค่อยลงมือ (กันแก้ครึ่ง ๆ)
+              var need = (newM[n] || 0) - (oldM[n] || 0);
+              if (need > 0) {
+                var avail = medTotal(lots, n);
+                if (need > avail) return { ok: false, error: 'ยา “' + n + '” คงเหลือไม่พอ (มี ' + avail + ' ต้องเบิกเพิ่ม ' + need + ')' };
+              }
+            }
+            for (n in names) {
+              var d = (newM[n] || 0) - (oldM[n] || 0);
+              if (d > 0) deductStock([{ name: n, qty: d }], 'แก้ไข ' + code, by);
+              else if (d < 0) returnStock(n, -d, 'แก้ไข ' + code, by);
+            }
+          }
+          var medsText = p.meds.map(function (m) {
+            return m.name + ' x' + (m.qty || '-') + ' ' + (m.unit || '');
+          }).join(' | ');
+          sh.getRange(row, 15).setValue(medsText);
+        }
+
         if (p.symptom != null) sh.getRange(row, 14).setValue(S(p.symptom));
         if (p.note != null) sh.getRange(row, 16).setValue(S(p.note));
         var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
-        sh.getRange(row, 17).setValue('✎ แก้ไข ' + stamp + (p.by ? ' โดย ' + S(p.by) : ''));
-        logAudit('แก้ไขบันทึก', 'โค้ด ' + S(p.code), p.pin);
-        return { ok: true, code: S(p.code) };
+        sh.getRange(row, 17).setValue('✎ แก้ไข ' + stamp + (by ? ' โดย ' + by : ''));
+        logAudit('แก้ไขบันทึก', 'โค้ด ' + code + (p.meds ? ' (แก้ยาที่เบิก)' : ''), p.pin);
+        return { ok: true, code: code };
       }
     }
     return { ok: false, error: 'ไม่พบโค้ด ' + S(p.code) };

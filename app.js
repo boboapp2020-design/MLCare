@@ -197,11 +197,17 @@
   }
   function storeUpdateRecord(code, data) {
     var by = currentNurse ? currentNurse.name : "admin";
-    if (USE_API) return apiPost("updateRecord", { code: code, symptom: data.symptom, note: data.note, pin: data.pin, by: by }).then(function (res) {
+    if (USE_API) return apiPost("updateRecord", { code: code, symptom: data.symptom, note: data.note, meds: data.meds, pin: data.pin, by: by }).then(function (res) {
       if (!res || !res.ok) throw new Error((res && res.error) || "แก้ไขไม่สำเร็จ"); return res;
     });
     if (!currentNurse || String(currentNurse.pin) !== String(data.pin)) return Promise.reject(new Error("PIN ไม่ถูกต้อง"));
-    saveRecords(loadRecords().map(function (r) { if (r.code === code) { r.symptom = data.symptom; r.note = data.note; r.status = "✎ แก้ไข"; } return r; }));
+    saveRecords(loadRecords().map(function (r) {
+      if (r.code === code) {
+        r.symptom = data.symptom; r.note = data.note; r.status = "✎ แก้ไข";
+        if (data.meds) { r.meds = data.meds; r.medsText = data.meds.map(function (m) { return m.name + " x" + (m.qty || "-") + " " + (m.unit || ""); }).join(" | "); }
+      }
+      return r;
+    }));
     return Promise.resolve({ ok: true });
   }
   function storeChangePin(currentPin, newPin) {
@@ -1271,6 +1277,41 @@
   }
   /* แก้ไขรายการ (#5) */
   var editingCode = null;
+  /* แถวยาในกล่องแก้ไข — dropdown + จำนวน + ปุ่มลบ (ไม่มีคำเตือนเหมือนหน้าบันทึก) */
+  function addEditMedLine(name, qty) {
+    var wrap = document.createElement("div");
+    wrap.className = "med-line";
+    wrap.innerHTML =
+      '<div class="m-name"><select class="inp med-name">' + medOptionsHTML() + '</select></div>' +
+      '<div class="m-qty"><input class="inp med-qty" type="number" min="1" placeholder="จำนวน"><span class="unit-chip med-unit">หน่วย</span></div>' +
+      '<button type="button" class="m-del" title="ลบ" aria-label="ลบรายการยา">✕</button>';
+    var sel = wrap.querySelector(".med-name"), unitEl = wrap.querySelector(".med-unit"), qtyEl = wrap.querySelector(".med-qty");
+    function sync() {
+      var idx = sel.value;
+      if (idx === "none") { unitEl.textContent = "-"; qtyEl.value = ""; qtyEl.disabled = true; return; }
+      qtyEl.disabled = false;
+      unitEl.textContent = idx === "" ? "หน่วย" : DB.medicines[+idx].unit;
+    }
+    if (name) {
+      if (/ไม่จ่าย|ไม่ได้จ่าย/.test(name)) sel.value = "none";
+      else for (var i = 0; i < DB.medicines.length; i++) if (DB.medicines[i].name === name) { sel.value = i; break; }
+    }
+    sync();
+    if (qty && sel.value !== "none") qtyEl.value = qty;
+    sel.addEventListener("change", sync);
+    wrap.querySelector(".m-del").addEventListener("click", function () { wrap.remove(); });
+    $("edit-med-list").appendChild(wrap);
+  }
+  function collectEditMeds() {
+    var lines = $("edit-med-list").querySelectorAll(".med-line"), meds = [];
+    for (var i = 0; i < lines.length; i++) {
+      var idx = lines[i].querySelector(".med-name").value; if (idx === "") continue;
+      if (idx === "none") { meds.push({ name: "ไม่จ่ายยา", unit: "-", qty: "-" }); continue; }
+      var med = DB.medicines[+idx], q = lines[i].querySelector(".med-qty").value.trim();
+      meds.push({ name: med.name, unit: med.unit, qty: q });
+    }
+    return meds;
+  }
   function openEdit(code) {
     var r = null, list = adminData.records;
     for (var i = 0; i < list.length; i++) if (list[i].code === code) { r = list[i]; break; }
@@ -1290,6 +1331,10 @@
       if (!found && sym) { var o = document.createElement("option"); o.value = sym; o.textContent = sym; sel.appendChild(o); }
       sel.value = sym; hide(other); other.value = "";
     }
+    $("edit-med-list").innerHTML = "";
+    var oldMeds = recMeds(r);
+    if (oldMeds.length) oldMeds.forEach(function (m) { addEditMedLine(m.name, m.qty); });
+    else addEditMedLine();
     $("edit-note").value = r.note || "";
     $("edit-pin").value = ""; $("edit-err").textContent = "";
     $("edit-code").textContent = code;
@@ -1299,9 +1344,16 @@
     var sel = $("edit-symptom"), sym = sel.value;
     if (!sym) { $("edit-err").textContent = "กรุณาเลือกอาการ"; return; }
     if (isOther(sym)) { var o = $("edit-symptom-other").value.trim(); if (!o) { $("edit-err").textContent = "กรุณาระบุอาการ"; return; } sym = sym + ": " + o; }
+    var meds = collectEditMeds();
+    if (!meds.length) { $("edit-err").textContent = "กรุณาเลือกยาอย่างน้อย 1 รายการ (หรือเลือก “ไม่จ่ายยา”)"; return; }
+    for (var mi = 0; mi < meds.length; mi++) {
+      if (meds[mi].qty === "-") continue;                       // ไม่จ่ายยา
+      var q = parseInt(meds[mi].qty, 10);
+      if (isNaN(q) || q <= 0) { $("edit-err").textContent = "กรุณากรอกจำนวนของ “" + meds[mi].name + "” ให้ถูกต้อง"; return; }
+    }
     var pin = $("edit-pin").value.trim(); if (!pin) { $("edit-err").textContent = "กรุณากรอก PIN"; return; }
     var btn = $("edit-ok"); btn.disabled = true; $("edit-err").textContent = "กำลังบันทึก…";
-    storeUpdateRecord(editingCode, { symptom: sym, note: $("edit-note").value.trim(), pin: pin }).then(function () {
+    storeUpdateRecord(editingCode, { symptom: sym, note: $("edit-note").value.trim(), meds: meds, pin: pin }).then(function () {
       btn.disabled = false; hide($("edit-modal")); toast("แก้ไขรายการ " + editingCode + " แล้ว"); adminLoad(true);
     }).catch(function (e) { btn.disabled = false; $("edit-err").textContent = e.message || "แก้ไขไม่สำเร็จ"; });
   }
@@ -1540,6 +1592,7 @@
       var ed = e.target.closest(".btn-edit-row"); if (ed) openEdit(ed.getAttribute("data-code"));
     });
     $("edit-cancel").addEventListener("click", function () { hide($("edit-modal")); });
+    $("edit-med-add").addEventListener("click", function () { addEditMedLine(); });
     $("edit-ok").addEventListener("click", saveEdit);
     $("edit-symptom").addEventListener("change", function () {
       if (isOther(this.value)) show($("edit-symptom-other")); else { hide($("edit-symptom-other")); $("edit-symptom-other").value = ""; }
