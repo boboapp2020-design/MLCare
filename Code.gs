@@ -31,33 +31,59 @@ var RECORD_HEADERS = ['โค้ด','วันที่-เวลา','รห�
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || 'bootstrap';
   if (TOKEN && (!e || !e.parameter || e.parameter.token !== TOKEN)) return json({ ok: false, error: 'unauthorized' });
-  if (action === 'records') return json({ ok: true, records: getRecords() });
-  if (action === 'history') return json({ ok: true, records: getRecords(e.parameter.empId) });
-  if (action === 'stock')   return json({ ok: true, stock: getStock() });
-  if (action === 'movements') return json({ ok: true, movements: getMovements(200) });
+  if (action === 'records') return json({ ok: true, records: recordsCached() });
+  if (action === 'history') return json({ ok: true, records: historyCached(e.parameter.empId) });
+  if (action === 'stock')   return json({ ok: true, stock: stockCached() });
+  if (action === 'movements') return json({ ok: true, movements: movementsCached() });
   if (action === 'ping')    return json({ ok: true, time: new Date().toISOString() });
   return json(bootstrapCached(e && e.parameter && e.parameter.fresh));
+}
+
+/* การเขียนแต่ละแบบกระทบ cache ตัวไหนบ้าง — ล้างเฉพาะที่จำเป็น
+   (เป็นฟังก์ชัน ไม่ใช่ตัวแปร เพราะ key ประกาศไว้ด้านล่างของไฟล์ —
+    ถ้าอ่านตอนโหลดสคริปต์จะได้ undefined และ cache จะไม่ถูกล้างเลย) */
+function cacheImpact(action) {
+  var R = REC_CACHE_KEY, K = STK_CACHE_KEY, M = MOV_CACHE_KEY;
+  return {
+    addRecord:      [R, K, M],   // บันทึก + ตัดสต๊อก
+    updateRecord:   [R, K, M],   // อาจแก้ยา → กระทบสต๊อก
+    deleteRecord:   [R],
+    clearRecords:   [R],
+    addStock:       [K, M],
+    adjustStock:    [K, M],
+    clearStock:     [K, M],
+    clearMovements: [M],
+    deleteMedicine: [K]          // เก็บกวาดล็อตเปล่าด้วย
+  }[action] || null;
 }
 
 function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents || '{}');
     if (TOKEN && body.token !== TOKEN) return json({ ok: false, error: 'unauthorized' });
-    if (body.action === 'addRecord') return json(addRecord(body.payload || {}));
-    if (body.action === 'addStock')  return json(addStock(body.payload || {}));
-    if (body.action === 'adjustStock') return json(adjustStock(body.payload || {}));
-    if (body.action === 'addMedicine') return json(addMedicine(body.payload || {}));
-    if (body.action === 'deleteMedicine') return json(deleteMedicine(body.payload || {}));
-    if (body.action === 'clearStock') return json(clearStock(body.payload || {}));
-    if (body.action === 'clearMovements') return json(clearMovements(body.payload || {}));
-    if (body.action === 'deleteRecord') return json(deleteRecord(body.payload || {}));
-    if (body.action === 'updateRecord') return json(updateRecord(body.payload || {}));
-    if (body.action === 'clearRecords') return json(clearRecords(body.payload || {}));
-    if (body.action === 'changePin')   return json(changePin(body.payload || {}));
-    if (body.action === 'addUser')     return json(addUser(body.payload || {}));
-    if (body.action === 'updateUser')  return json(updateUser(body.payload || {}));
-    if (body.action === 'deleteUser')  return json(deleteUser(body.payload || {}));
-    return json({ ok: false, error: 'unknown action: ' + body.action });
+    var a = body.action, p = body.payload || {}, res;
+    if (a === 'addRecord')           res = addRecord(p);
+    else if (a === 'addStock')       res = addStock(p);
+    else if (a === 'adjustStock')    res = adjustStock(p);
+    else if (a === 'addMedicine')    res = addMedicine(p);
+    else if (a === 'deleteMedicine') res = deleteMedicine(p);
+    else if (a === 'clearStock')     res = clearStock(p);
+    else if (a === 'clearMovements') res = clearMovements(p);
+    else if (a === 'deleteRecord')   res = deleteRecord(p);
+    else if (a === 'updateRecord')   res = updateRecord(p);
+    else if (a === 'clearRecords')   res = clearRecords(p);
+    else if (a === 'changePin')      res = changePin(p);
+    else if (a === 'addUser')        res = addUser(p);
+    else if (a === 'updateUser')     res = updateUser(p);
+    else if (a === 'deleteUser')     res = deleteUser(p);
+    else return json({ ok: false, error: 'unknown action: ' + a });
+
+    // สำเร็จแล้วค่อยล้าง cache — ถ้าล้มเหลวข้อมูลไม่เปลี่ยน cache ยังถูกต้อง
+    var impact = cacheImpact(a);
+    if (res && res.ok && impact) {
+      try { CacheService.getScriptCache().removeAll(impact); } catch (err2) {}
+    }
+    return json(res);
   } catch (err) {
     return json({ ok: false, error: String(err) });
   }
@@ -109,6 +135,61 @@ function bootstrapCached(force) {
   return data;
 }
 function clearBootCache() { try { CacheService.getScriptCache().remove(BOOT_CACHE_KEY); } catch (e) {} }
+
+/* ---- cache ข้อมูลที่เปลี่ยนบ่อย (บันทึก/สต๊อก/เคลื่อนไหว) ----
+   เดิมทุก request อ่านทั้งชีตใหม่ ทำให้ยิ่งมีข้อมูลมากยิ่งช้า
+   ตอนนี้อ่านครั้งเดียวแล้วแคชไว้ ล้างทันทีเมื่อมีการเขียน */
+var REC_CACHE_KEY = 'rec_v1', STK_CACHE_KEY = 'stk_v1', MOV_CACHE_KEY = 'mov_v1';
+var DATA_CACHE_TTL = 600;   // 10 นาที (ล้างเองทุกครั้งที่มีการเขียนอยู่แล้ว)
+
+function cacheGetGz(key) {
+  try {
+    var z = CacheService.getScriptCache().get(key);
+    if (!z) return null;
+    var blob = Utilities.newBlob(Utilities.base64Decode(z), 'application/x-gzip');
+    return JSON.parse(Utilities.ungzip(blob).getDataAsString('UTF-8'));
+  } catch (e) { return null; }
+}
+function cachePutGz(key, obj) {
+  // เกิน 100KB (ลิมิต CacheService) จะ put ไม่ผ่าน — ปล่อยให้อ่านสดแทน ไม่ให้ error
+  try {
+    var gz = Utilities.gzip(Utilities.newBlob(JSON.stringify(obj), 'application/json'));
+    CacheService.getScriptCache().put(key, Utilities.base64Encode(gz.getBytes()), DATA_CACHE_TTL);
+  } catch (e) {}
+}
+function clearDataCache() {
+  try { CacheService.getScriptCache().removeAll([REC_CACHE_KEY, STK_CACHE_KEY, MOV_CACHE_KEY]); } catch (e) {}
+}
+
+/* บันทึกทั้งหมด (แคช) — history กรองจากชุดเดียวกันนี้ ไม่ต้องอ่านชีตซ้ำ */
+function recordsCached() {
+  var c = cacheGetGz(REC_CACHE_KEY);
+  if (c) return c;
+  var data = getRecords();
+  cachePutGz(REC_CACHE_KEY, data);
+  return data;
+}
+function historyCached(empId) {
+  var id = S(empId);
+  if (!id) return [];
+  var all = recordsCached(), out = [];
+  for (var i = 0; i < all.length; i++) if (S(all[i].empId) === id) out.push(all[i]);
+  return out;
+}
+function stockCached() {
+  var c = cacheGetGz(STK_CACHE_KEY);
+  if (c) return c;
+  var data = getStock();
+  cachePutGz(STK_CACHE_KEY, data);
+  return data;
+}
+function movementsCached() {
+  var c = cacheGetGz(MOV_CACHE_KEY);
+  if (c) return c;
+  var data = getMovements(200);
+  cachePutGz(MOV_CACHE_KEY, data);
+  return data;
+}
 
 function parseUsers() {
   var v = values('User'), out = [];

@@ -8,6 +8,7 @@
   var LS_SESSION = "mlcare_session";
   var LS_QUEUE = "mlcare_queue";
   var LS_TAB = "mlcare_tab";          // จำแท็บล่าสุด — F5 แล้วกลับหน้าเดิม
+  var LS_ADMIN = "mlcare_admin";      // ข้อมูลแอดมินชุดล่าสุด — เปิดแล้วเห็นทันที (ล้างตอน logout)
 
   var USE_API = (typeof API_URL !== "undefined" && API_URL && ("" + API_URL).trim() !== "");
   var API = USE_API ? ("" + API_URL).trim() : "";
@@ -300,6 +301,8 @@
   }
   function logout() {
     localStorage.removeItem(LS_SESSION); currentNurse = null;
+    try { localStorage.removeItem(LS_ADMIN); } catch (e) {}   // ประวัติการรักษา ไม่ทิ้งค้างในเครื่องที่ใช้ร่วมกัน
+    adminData.loaded = false; empHistCache = {};
     $("login-form").reset(); $("login-error").textContent = "";
     hide($("view-app")); show($("view-login"));
   }
@@ -356,16 +359,21 @@
   }
 
   /* ---------- ประวัติรายบุคคล ---------- */
+  var empHistCache = {};   // empId -> ประวัติ (ค้นคนเดิมซ้ำ เห็นทันที) — ล้างเมื่อบันทึก/ออกจากระบบ
   function loadEmpHistory(empId) {
     show($("history-card"));
     var box = $("emp-history");
-    box.innerHTML = '<div class="empty">กำลังโหลด…</div>';
     $("history-sub").textContent = "ประวัติการเข้าห้องพยาบาลของพนักงานคนนี้";
+    if (empHistCache[empId]) renderEmpHistory(empHistCache[empId]);   // แสดงของเดิมก่อน
+    else box.innerHTML = '<div class="empty">กำลังโหลด…</div>';
     var p = USE_API
       ? apiGet("history", { empId: empId }).then(function (res) { return (res && res.records) || []; })
       : Promise.resolve(loadRecords().filter(function (r) { return r.empId === empId; }));
-    p.then(renderEmpHistory).catch(function () {
-      box.innerHTML = '<div class="empty">โหลดประวัติไม่สำเร็จ</div>';
+    p.then(function (list) {
+      empHistCache[empId] = list;
+      if (currentEmp && currentEmp.id === empId) renderEmpHistory(list);   // กันแสดงผิดคนถ้าเปลี่ยนคนระหว่างรอ
+    }).catch(function () {
+      if (!empHistCache[empId]) box.innerHTML = '<div class="empty">โหลดประวัติไม่สำเร็จ</div>';
     });
   }
   function renderEmpHistory(list) {
@@ -649,6 +657,8 @@
     storeAddRecord(rec).then(function (res) {
       if (!rec.datetime) rec.datetime = new Date().toISOString();
       lastSlip = { rec: rec, code: res.code };
+      if (rec.empId) delete empHistCache[rec.empId];            // ประวัติคนนี้เปลี่ยนแล้ว
+      adminData.loaded = false;                                 // แอดมินเปิดครั้งหน้าดึงใหม่
       showCodeModal(res); refreshLog(); loadStockShared();
     }).catch(function (err) {
       toast("บันทึกไม่สำเร็จ: " + err.message);
@@ -858,12 +868,26 @@
 
   function adminLoad(force) {
     if (adminData.loaded && !force) { renderCurrentAdmin(); return; }
+    /* เปิดครั้งแรก: แสดงข้อมูลชุดล่าสุดที่เคยโหลดทันที ไม่ต้องรอเน็ต
+       แล้วดึงของใหม่มาทับเบื้องหลัง (stale-while-revalidate) */
+    if (!adminData.loaded && USE_API) {
+      try {
+        var c = JSON.parse(localStorage.getItem(LS_ADMIN));
+        if (c && c.records) {
+          adminData.records = c.records; adminData.stock = c.stock || []; adminData.movements = c.movements || [];
+          adminData.loaded = true; renderCurrentAdmin();
+        }
+      } catch (e) {}
+    }
     var recP = storeListRecords();
     var stkP = USE_API ? apiGet("stock").then(function (r) { return (r && r.stock) || []; }) : Promise.resolve([]);
     var movP = USE_API ? apiGet("movements").then(function (r) { return (r && r.movements) || []; }) : Promise.resolve([]);
     Promise.all([recP, stkP, movP]).then(function (res) {
       adminData.records = res[0] || []; adminData.stock = res[1] || []; adminData.movements = res[2] || [];
       adminData.loaded = true; renderCurrentAdmin();
+      if (USE_API) try {
+        localStorage.setItem(LS_ADMIN, JSON.stringify({ records: adminData.records, stock: adminData.stock, movements: adminData.movements }));
+      } catch (e) {}
     }).catch(function (e) { toast("โหลดข้อมูลแอดมินไม่สำเร็จ: " + e.message); });
   }
   function renderCurrentAdmin() {
